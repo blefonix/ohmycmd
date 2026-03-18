@@ -12,20 +12,21 @@
 
 v0.x. Early development.
 
-Current phase: **P4 (Compatibility & Migration Layer)**.
+Current phase: **P5 (Hardening & Performance)**.
 
-P4 snapshot includes:
+P5 snapshot includes:
 
 - runtime command registry/parser/dispatcher core,
-- policy pre-check system (permissions, cooldowns, rate-limit),
-- typed arg helper natives,
-- compatibility registration native:
-  - `OhmyCmd_RegisterCompat`
-- compatibility include:
-  - `include/ohmycmd_compat.inc`
-  - helpers: `OhmyCmd_MigrateYCMD`, `OhmyCmd_MigrateZCMD`, `OhmyCmd_MigrateLegacy`
-- migration docs:
-  - `docs/migration.md` with side-by-side examples.
+- RP policy features (permissions/cooldowns/rate-limit + typed args),
+- compatibility migration layer (`OhmyCmd_RegisterCompat`, `ohmycmd_compat.inc`),
+- test suite binaries:
+  - parser unit tests,
+  - registry unit tests,
+  - parser fuzz tests,
+  - registry stress tests,
+- benchmark binary:
+  - `ohmycmd_bench_dispatch`,
+- published baseline output in `docs/benchmarks.md`.
 
 ## Build (Linux)
 
@@ -33,7 +34,7 @@ P4 snapshot includes:
 git clone https://github.com/blefonix/ohmycmd.git
 # OR: git clone git@github.com:blefonix/ohmycmd.git
 cd ohmycmd
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DOHMYCMD_BUILD_TESTING=ON
 cmake --build build --config Release -j$(nproc)
 ```
 
@@ -44,6 +45,13 @@ Output:
 Notes:
 
 - Build is configured as 32-bit (`ELF32`) by default for open.mp runtime compatibility.
+
+## Run tests + benchmark
+
+```bash
+ctest --test-dir build --output-on-failure
+./build/ohmycmd_bench_dispatch 5000 600000
+```
 
 ## Pawn includes (qawno/include)
 
@@ -59,7 +67,11 @@ Tiny smoke script:
 
 ## Migration docs
 
-- See `docs/migration.md`.
+- `docs/migration.md`
+
+## Benchmark baseline
+
+- `docs/benchmarks.md`
 
 ## License
 

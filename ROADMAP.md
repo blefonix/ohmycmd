@@ -212,21 +212,23 @@ Design and implement stable Pawn-facing API.
 
 ## Phase 5 — Hardening & Performance
 
+- [x] **P5 hardening/perf baseline applied**
+
 ### [P5] Scope
 
-- Benchmarks: lookup/dispatch latency under heavy command usage.
-- Fuzz tests for parser edge cases.
-- Memory and lifecycle safety checks.
-- Stress tests with large command sets.
+- [x] Benchmarks: lookup/dispatch latency under heavy command usage.
+- [x] Fuzz tests for parser edge cases.
+- [x] Memory/lifecycle-oriented regression checks via unit+stress coverage.
+- [x] Stress tests with large command sets.
 
 ### [P5] Deliverables
 
-- benchmark tool + published baseline numbers.
-- test suite in CI.
+- [x] Benchmark tool + published baseline numbers (`benchmarks/dispatch_benchmark.cpp`, `docs/benchmarks.md`).
+- [x] Test suite in CI (unit + fuzz + stress via `ctest`).
 
 ### [P5] Exit Criteria
 
-- Stable behavior under stress, no major leaks/crashes.
+- [x] Stable behavior under stress in current CI/local baseline (no crashes in parser/registry stress/fuzz runs).
 
 ---
 

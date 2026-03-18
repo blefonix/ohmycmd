@@ -18,13 +18,21 @@ jobs:
           sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386
 
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DOHMYCMD_BUILD_TESTING=ON
 
       - name: Build
         run: cmake --build build --config Release -j$(nproc)
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run benchmark baseline
+        run: ./build/ohmycmd_bench_dispatch 5000 300000 | tee build/benchmark.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ohmycmd-linux
-          path: build/ohmycmd.so
+          path: |
+            build/ohmycmd.so
+            build/benchmark.txt
