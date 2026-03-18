@@ -167,22 +167,24 @@ Design and implement stable Pawn-facing API.
 
 ## Phase 3 — Features for RP servers
 
+- [x] **P3 initial RP feature set applied**
+
 ### [P3] Scope
 
-- Permissions/roles integration hooks.
-- Cooldowns (global + per-player).
-- Rate limiting / anti-spam.
-- Built-in usage/help responses.
-- Typed argument parsing helpers (int/float/playerid/string/rest).
+- [x] Permissions/roles integration hooks.
+- [x] Cooldowns (global + per-player).
+- [x] Rate limiting / anti-spam.
+- [x] Built-in usage/help responses.
+- [x] Typed argument parsing helpers (int/float/playerid/string/rest).
 
 ### [P3] Deliverables
 
-- Policy system for pre-execution checks.
-- Standardized error codes/messages.
+- [x] Policy system for pre-execution checks.
+- [x] Standardized deny reasons/messages (`OMC_DENY_*` + built-in messaging + optional callback override).
 
 ### [P3] Exit Criteria
 
-- Production-oriented command flows can be expressed without ad-hoc boilerplate.
+- [x] Production-oriented command flows can be expressed without ad-hoc boilerplate.
 
 ---
 

@@ -12,19 +12,34 @@
 
 v0.x. Early development.
 
-Current phase: **P2 (Pawn API)**.
+Current phase: **P3 (RP-oriented features)**.
 
-P2 snapshot includes:
+P3 snapshot includes:
 
 - runtime command registry/parser/dispatcher core,
 - Pawn registration API:
   - `OhmyCmd_Register`
   - `OhmyCmd_AddAlias`
+  - `OhmyCmd_SetFlags`
   - `OhmyCmd_SetDescription`
   - `OhmyCmd_SetUsage`
+  - `OhmyCmd_SetCooldown`
+  - `OhmyCmd_SetRateLimit`
   - `OhmyCmd_Execute`
   - `OhmyCmd_Count`
-- Pawn include helper: `OhmyCmd_RegisterEx(...)`.
+- policy hooks:
+  - `OhmyCmd_OnCheckAccess(playerid, command, flags)`
+  - `OhmyCmd_OnPolicyDeny(playerid, command, reason, retry_ms)`
+- typed arg helper natives:
+  - `OhmyCmd_ArgCount`
+  - `OhmyCmd_ArgInt`
+  - `OhmyCmd_ArgFloat`
+  - `OhmyCmd_ArgPlayerID`
+  - `OhmyCmd_ArgString`
+  - `OhmyCmd_ArgRest`
+- built-in usage/help responses:
+  - `/cmd help` or `/cmd ?`
+  - usage line shown when handler returns `0`
 
 ## Build (Linux)
 
@@ -51,9 +66,9 @@ Notes:
 Tiny smoke script:
 
 - `tests/smoke/ohmycmd_smoke.pwn`
-  - registers `/test` with `OhmyCmd_RegisterEx`
-  - sets description + usage
-  - adds alias `/t`
+  - registers `/test` and `/pay`
+  - demonstrates cooldown/rate-limit setup
+  - demonstrates typed args and permission hook
 
 ## License
 

@@ -106,6 +106,17 @@ AliasResult CommandRegistry::addAlias(std::string_view name, std::string_view al
     return AliasResult::Ok;
 }
 
+MetadataResult CommandRegistry::setFlags(std::string_view name, uint32_t flags) {
+    const std::string normalizedName = normalizeIdentifier(name);
+    auto commandIt = commandsByName_.find(normalizedName);
+    if (commandIt == commandsByName_.end()) {
+        return MetadataResult::CommandNotFound;
+    }
+
+    commandIt->second.flags = flags;
+    return MetadataResult::Ok;
+}
+
 MetadataResult CommandRegistry::setDescription(std::string_view name, std::string_view text) {
     const std::string normalizedName = normalizeIdentifier(name);
     auto commandIt = commandsByName_.find(normalizedName);
@@ -125,6 +136,38 @@ MetadataResult CommandRegistry::setUsage(std::string_view name, std::string_view
     }
 
     commandIt->second.usage = trim(text);
+    return MetadataResult::Ok;
+}
+
+MetadataResult CommandRegistry::setCooldown(std::string_view name, int globalCooldownMs, int playerCooldownMs) {
+    if (globalCooldownMs < 0 || playerCooldownMs < 0) {
+        return MetadataResult::InvalidValue;
+    }
+
+    const std::string normalizedName = normalizeIdentifier(name);
+    auto commandIt = commandsByName_.find(normalizedName);
+    if (commandIt == commandsByName_.end()) {
+        return MetadataResult::CommandNotFound;
+    }
+
+    commandIt->second.globalCooldownMs = globalCooldownMs;
+    commandIt->second.playerCooldownMs = playerCooldownMs;
+    return MetadataResult::Ok;
+}
+
+MetadataResult CommandRegistry::setRateLimit(std::string_view name, int maxCalls, int windowMs) {
+    if (maxCalls < 0 || windowMs < 0) {
+        return MetadataResult::InvalidValue;
+    }
+
+    const std::string normalizedName = normalizeIdentifier(name);
+    auto commandIt = commandsByName_.find(normalizedName);
+    if (commandIt == commandsByName_.end()) {
+        return MetadataResult::CommandNotFound;
+    }
+
+    commandIt->second.rateLimitCount = maxCalls;
+    commandIt->second.rateLimitWindowMs = windowMs;
     return MetadataResult::Ok;
 }
 
