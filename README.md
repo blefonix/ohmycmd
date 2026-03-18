@@ -25,6 +25,11 @@ Output:
 
 - `build/ohmycmd.so`
 
+Notes:
+
+- Linux build is configured as 32-bit (`ELF32`) by default for open.mp runtime compatibility.
+- Use a single build directory (`build/`) for this repository.
+
 ## License
 
 MIT © 2026-present Nazarii Korniienko

@@ -20,6 +20,12 @@ target_compile_definitions(ohmycmd PRIVATE
     OHMYCMD_VERSION_PATCH=${PROJECT_VERSION_PATCH}
 )
 
+# Current open.mp runtime in Blefonix is 32-bit; keep component ABI compatible by default.
+if(UNIX AND NOT APPLE)
+    target_compile_options(ohmycmd PRIVATE -m32)
+    target_link_options(ohmycmd PRIVATE -m32)
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(ohmycmd PRIVATE -Wno-attributes)
 endif()
