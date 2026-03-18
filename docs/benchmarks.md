@@ -2,7 +2,7 @@
 
 ## Host snapshot
 
-- Environment: OpenClaw workspace host (Linux)
+- Environment: Linux Ubuntu Server 24.04 LTS
 - Compiler/toolchain: GCC via CMake Release
 - Build mode: `-DCMAKE_BUILD_TYPE=Release`
 - Benchmark binary: `build/ohmycmd_bench_dispatch`

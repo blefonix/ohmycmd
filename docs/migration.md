@@ -1,8 +1,11 @@
-# Migration Guide: ycmd / zcmd / legacy -> ohmycmd
+# Migration Guide: ycmd / zcmd / legacy -> OMC
 
 This guide helps migrate command code incrementally without big-bang rewrites.
 
-## 1) ycmd-style (`CMD_<name>`) -> ohmycmd compat
+> Phase 6 namespace note: `OMC_*` is the primary API.
+> `OhmyCmd_*` aliases are temporarily kept for backward compatibility.
+
+## 1) ycmd-style (`CMD_<name>`) -> OMC compat
 
 ### Before (legacy style)
 
@@ -21,7 +24,7 @@ CMD_kick(playerid, params[])
 
 public OnGameModeInit()
 {
-    OhmyCmd_MigrateYCMD("kick", ADMIN_FLAG, "Kick a player", "/kick <id> [reason]");
+    OMC_MigrateYCMD("kick", ADMIN_FLAG, "Kick a player", "/kick <id> [reason]");
     return 1;
 }
 
@@ -32,11 +35,11 @@ public CMD_kick(playerid, const args[])
 }
 ```
 
-`OhmyCmd_MigrateYCMD` auto-resolves common public names (`CMD_kick`, `cmd_kick`, etc.) via `OhmyCmd_RegisterCompat`.
+`OMC_MigrateYCMD` auto-resolves common public names (`CMD_kick`, `cmd_kick`, etc.) via `OMC_RegisterCompat`.
 
 ---
 
-## 2) zcmd-style (`cmd_<name>`) -> ohmycmd compat
+## 2) zcmd-style (`cmd_<name>`) -> OMC compat
 
 ### Before
 
@@ -55,7 +58,7 @@ CMD:ban(playerid, params[])
 
 public OnGameModeInit()
 {
-    OhmyCmd_MigrateZCMD("ban", ADMIN_FLAG, "Ban player", "/ban <id> <hours> [reason]");
+    OMC_MigrateZCMD("ban", ADMIN_FLAG, "Ban player", "/ban <id> <hours> [reason]");
     return 1;
 }
 
@@ -77,7 +80,7 @@ If legacy handlers use custom names, register explicitly:
 
 public OnGameModeInit()
 {
-    OhmyCmd_MigrateLegacy("announce", "Legacy_AnnounceHandler", 0, "Broadcast message", "/announce <text>");
+    OMC_MigrateLegacy("announce", "Legacy_AnnounceHandler", 0, "Broadcast message", "/announce <text>");
     return 1;
 }
 
@@ -98,13 +101,13 @@ Replace ad-hoc parsing with helper natives:
 public CMD_kick(playerid, const args[])
 {
     new target;
-    if (!OhmyCmd_ArgPlayerID(args, 0, target))
+    if (!OMC_ArgPlayerID(args, 0, target))
     {
-        return 0; // ohmycmd prints usage if configured
+        return 0; // OMC prints usage if configured
     }
 
     new reason[96];
-    OhmyCmd_ArgRest(args, 1, reason, sizeof reason);
+    OMC_ArgRest(args, 1, reason, sizeof reason);
 
     // ...
     return 1;
@@ -118,13 +121,13 @@ public CMD_kick(playerid, const args[])
 ```pawn
 public OnGameModeInit()
 {
-    OhmyCmd_RegisterCompatEx("pay", ADMIN_FLAG, "Admin payment", "/pay <id> <amount>");
-    OhmyCmd_SetCooldown("pay", 250, 1000);   // global, per-player
-    OhmyCmd_SetRateLimit("pay", 5, 10000);   // max 5 calls / 10s per player
+    OMC_RegisterCompatEx("pay", ADMIN_FLAG, "Admin payment", "/pay <id> <amount>");
+    OMC_SetCooldown("pay", 250, 1000);   // global, per-player
+    OMC_SetRateLimit("pay", 5, 10000);   // max 5 calls / 10s per player
     return 1;
 }
 
-public OhmyCmd_OnCheckAccess(playerid, const command[], flags)
+public OMC_OnCheckAccess(playerid, const command[], flags)
 {
     if ((flags & ADMIN_FLAG) == 0) return 1;
     return IsPlayerAdmin(playerid);

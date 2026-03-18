@@ -1,32 +1,28 @@
 # ohmycmd
 
-`ohmycmd` is an upcoming command processor plugin for open.mp servers.
+`ohmycmd` is an upcoming command processor component for open.mp servers.
 
 ## Goals
 
-- Work as an **open.mp component** (`components/ohmycmd.so`)
+- Work as a native **open.mp component** (`components/ohmycmd.so`)
 - Be built on top of the [open.mp SDK](https://github.com/openmultiplayer/open.mp-sdk)
-- Provide a modern, reliable alternative for Pawn command handling
+- Provide a modern, reliable command layer with Pawn.CMD-style migration path
 
 ## Status
 
 v0.x. Early development.
 
-Current phase: **P5 (Hardening & Performance)**.
+Current phase: **P6 (Pawn.CMD DX parity + OMC namespace)**.
 
-P5 snapshot includes:
+P6 work in progress currently includes:
 
-- runtime command registry/parser/dispatcher core,
-- RP policy features (permissions/cooldowns/rate-limit + typed args),
-- compatibility migration layer (`OhmyCmd_RegisterCompat`, `ohmycmd_compat.inc`),
-- test suite binaries:
-  - parser unit tests,
-  - registry unit tests,
-  - parser fuzz tests,
-  - registry stress tests,
-- benchmark binary:
-  - `ohmycmd_bench_dispatch`,
-- published baseline output in `docs/benchmarks.md`.
+- `OMC_*` API namespace introduced as primary,
+- temporary legacy alias support for `OhmyCmd_*`,
+- compatibility include helpers for incremental migration,
+- P5 baseline assets still active:
+  - unit/fuzz/stress tests,
+  - dispatch benchmark,
+  - CI test + benchmark execution.
 
 ## Build (Linux)
 
@@ -55,7 +51,7 @@ ctest --test-dir build --output-on-failure
 
 ## Pawn includes (qawno/include)
 
-- `include/ohmycmd.inc`
+- `include/ohmycmd.inc` (`OMC_*` primary, legacy aliases available)
 - `include/ohmycmd_compat.inc`
 
 Tiny smoke script:

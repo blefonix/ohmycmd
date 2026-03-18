@@ -232,15 +232,72 @@ Design and implement stable Pawn-facing API.
 
 ---
 
-## Phase 6 — First Stable Release
+## Phase 6 — Pawn.CMD DX parity (1:1 drop-in) + OMC namespace
 
-### [P6] Target
+- [ ] **P6 in progress (new target): become a true 1:1 DX drop-in alternative to Pawn.CMD**
+
+### [P6] Primary objective
+
+Make existing Pawn.CMD-style scripts work with minimal/no rewrites while standardizing naming to `OMC_*`.
+
+### [P6] Critical TODOs (highest priority)
+
+1. **Namespace transition to `OMC_*` (API-level)**
+   - [x] Introduce `OMC_*` native surface as first-class API.
+   - [x] Rename current `OhmyCmd_*` API to `OMC_*` in include/docs/examples.
+   - [x] Keep temporary backward-compat aliases from `OhmyCmd_*` -> `OMC_*` during transition.
+
+2. **Native parity with Pawn.CMD DX (functional 1:1 target)**
+   - [ ] Add/align full command-management native set (alias/flags/description/getters/rename/exists/delete/array handles/emulate).
+   - [ ] Ensure array-handle lifecycle and behavior match expected Pawn.CMD usage patterns.
+   - [ ] Ensure command/alias metadata operations have equivalent semantics.
+
+3. **Callback flow parity (behavioral 1:1 target)**
+   - [ ] Mirror callback lifecycle and call order:
+     - `OMC_OnInit` (Pawn.CMD-style init phase)
+     - `OnPlayerCommandReceived`
+     - command handler execution
+     - `OnPlayerCommandPerformed`
+   - [ ] Match return-value semantics expected by Pawn.CMD-style scripts (continue/stop/unknown command behavior).
+
+4. **Include/macro DX parity (`Pawn.CMD.inc`-style ergonomics)**
+   - [ ] Provide OMC include macros equivalent to:
+     - `cmd:`, `CMD`, `COMMAND`
+     - `alias:`, `flags:`, `description:`
+     - helper-style invocation aliases (`callcmd::...`-like DX)
+   - [ ] Preserve filterscript/gamemode auto-init ergonomics comparable to legacy include usage.
+
+5. **Config parity for operator expectations**
+   - [ ] Support Pawn.CMD-like config keys/behavior:
+     - `CaseInsensitivity`
+     - `LegacyOpctSupport`
+     - `LocaleName`
+     - `UseCaching`
+     - `LogAmxErrors`
+   - [ ] Document exact compatibility behavior and any intentional deviations.
+
+6. **Drop-in verification suite (must-have gate for P6 exit)**
+   - [ ] Add fixture scripts that mirror canonical Pawn.CMD examples (aliases/flags/callback flow/emulation).
+   - [ ] Add behavior tests for command + alias arrays, rename/delete, callback ordering, and unknown command path.
+   - [ ] Validate both gamemode and filterscript include paths.
+
+### [P6] Exit Criteria
+
+- [ ] A Pawn.CMD-style sample package runs with OMC includes/API and preserves expected behavior.
+- [ ] `OMC_*` namespace is primary in docs/examples.
+- [ ] Compatibility notes are explicit, small, and tested.
+
+---
+
+## Phase 7 — First Stable Release
+
+### [P7] Target
 
 `v1.0.0`
 
-### [P6] Requirements
+### [P7] Requirements
 
-- Stable API surface and include file.
+- Stable post-parity API surface and include files (`OMC_*` primary).
 - Linux build artifacts.
 - Installation docs for open.mp (`components/ohmycmd.so`).
 - Changelog and semantic versioning policy.

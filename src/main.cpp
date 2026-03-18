@@ -244,22 +244,53 @@ public:
 
     // PawnEventHandler
     void onAmxLoad(IPawnScript& script) override {
-        static const std::array<AMX_NATIVE_INFO, 16> kNatives = {{
+        static const std::array<AMX_NATIVE_INFO, 32> kNatives = {{
+            { "OMC_Register", &OhMyCmdComponent::Native_OhmyCmd_Register },
             { "OhmyCmd_Register", &OhMyCmdComponent::Native_OhmyCmd_Register },
+
+            { "OMC_RegisterCompat", &OhMyCmdComponent::Native_OhmyCmd_RegisterCompat },
             { "OhmyCmd_RegisterCompat", &OhMyCmdComponent::Native_OhmyCmd_RegisterCompat },
+
+            { "OMC_AddAlias", &OhMyCmdComponent::Native_OhmyCmd_AddAlias },
             { "OhmyCmd_AddAlias", &OhMyCmdComponent::Native_OhmyCmd_AddAlias },
+
+            { "OMC_SetFlags", &OhMyCmdComponent::Native_OhmyCmd_SetFlags },
             { "OhmyCmd_SetFlags", &OhMyCmdComponent::Native_OhmyCmd_SetFlags },
+
+            { "OMC_SetDescription", &OhMyCmdComponent::Native_OhmyCmd_SetDescription },
             { "OhmyCmd_SetDescription", &OhMyCmdComponent::Native_OhmyCmd_SetDescription },
+
+            { "OMC_SetUsage", &OhMyCmdComponent::Native_OhmyCmd_SetUsage },
             { "OhmyCmd_SetUsage", &OhMyCmdComponent::Native_OhmyCmd_SetUsage },
+
+            { "OMC_SetCooldown", &OhMyCmdComponent::Native_OhmyCmd_SetCooldown },
             { "OhmyCmd_SetCooldown", &OhMyCmdComponent::Native_OhmyCmd_SetCooldown },
+
+            { "OMC_SetRateLimit", &OhMyCmdComponent::Native_OhmyCmd_SetRateLimit },
             { "OhmyCmd_SetRateLimit", &OhMyCmdComponent::Native_OhmyCmd_SetRateLimit },
+
+            { "OMC_Execute", &OhMyCmdComponent::Native_OhmyCmd_Execute },
             { "OhmyCmd_Execute", &OhMyCmdComponent::Native_OhmyCmd_Execute },
+
+            { "OMC_Count", &OhMyCmdComponent::Native_OhmyCmd_Count },
             { "OhmyCmd_Count", &OhMyCmdComponent::Native_OhmyCmd_Count },
+
+            { "OMC_ArgCount", &OhMyCmdComponent::Native_OhmyCmd_ArgCount },
             { "OhmyCmd_ArgCount", &OhMyCmdComponent::Native_OhmyCmd_ArgCount },
+
+            { "OMC_ArgInt", &OhMyCmdComponent::Native_OhmyCmd_ArgInt },
             { "OhmyCmd_ArgInt", &OhMyCmdComponent::Native_OhmyCmd_ArgInt },
+
+            { "OMC_ArgFloat", &OhMyCmdComponent::Native_OhmyCmd_ArgFloat },
             { "OhmyCmd_ArgFloat", &OhMyCmdComponent::Native_OhmyCmd_ArgFloat },
+
+            { "OMC_ArgPlayerID", &OhMyCmdComponent::Native_OhmyCmd_ArgPlayerID },
             { "OhmyCmd_ArgPlayerID", &OhMyCmdComponent::Native_OhmyCmd_ArgPlayerID },
+
+            { "OMC_ArgString", &OhMyCmdComponent::Native_OhmyCmd_ArgString },
             { "OhmyCmd_ArgString", &OhMyCmdComponent::Native_OhmyCmd_ArgString },
+
+            { "OMC_ArgRest", &OhMyCmdComponent::Native_OhmyCmd_ArgRest },
             { "OhmyCmd_ArgRest", &OhMyCmdComponent::Native_OhmyCmd_ArgRest },
         }};
 
@@ -912,11 +943,24 @@ private:
 
     PolicyDecision evaluatePolicy(IPawnScript* script, IPlayer& player, const ohmycmd::CommandSpec& command, TimePoint now) {
         if (script != nullptr && command.flags != 0) {
-            const cell allowed = script->Call("OhmyCmd_OnCheckAccess",
-                                              DefaultReturnValue_True,
-                                              player.getID(),
-                                              StringView(command.name.data(), command.name.size()),
-                                              static_cast<int>(command.flags));
+            const bool hasOmcAccessCallback = scriptHasPublic(script, "OMC_OnCheckAccess");
+            const bool hasLegacyAccessCallback = scriptHasPublic(script, "OhmyCmd_OnCheckAccess");
+
+            cell allowed = 1;
+            if (hasOmcAccessCallback) {
+                allowed = script->Call("OMC_OnCheckAccess",
+                                       DefaultReturnValue_True,
+                                       player.getID(),
+                                       StringView(command.name.data(), command.name.size()),
+                                       static_cast<int>(command.flags));
+            } else if (hasLegacyAccessCallback) {
+                allowed = script->Call("OhmyCmd_OnCheckAccess",
+                                       DefaultReturnValue_True,
+                                       player.getID(),
+                                       StringView(command.name.data(), command.name.size()),
+                                       static_cast<int>(command.flags));
+            }
+
             if (allowed == 0) {
                 return PolicyDecision { false, DenyReason::Permission, 0 };
             }
@@ -991,12 +1035,26 @@ private:
                             DenyReason reason,
                             int retryMs) {
         if (script != nullptr) {
-            const cell handled = script->Call("OhmyCmd_OnPolicyDeny",
-                                              DefaultReturnValue_False,
-                                              player.getID(),
-                                              StringView(command.name.data(), command.name.size()),
-                                              static_cast<int>(reason),
-                                              retryMs);
+            const bool hasOmcDenyCallback = scriptHasPublic(script, "OMC_OnPolicyDeny");
+            const bool hasLegacyDenyCallback = scriptHasPublic(script, "OhmyCmd_OnPolicyDeny");
+
+            cell handled = 0;
+            if (hasOmcDenyCallback) {
+                handled = script->Call("OMC_OnPolicyDeny",
+                                       DefaultReturnValue_False,
+                                       player.getID(),
+                                       StringView(command.name.data(), command.name.size()),
+                                       static_cast<int>(reason),
+                                       retryMs);
+            } else if (hasLegacyDenyCallback) {
+                handled = script->Call("OhmyCmd_OnPolicyDeny",
+                                       DefaultReturnValue_False,
+                                       player.getID(),
+                                       StringView(command.name.data(), command.name.size()),
+                                       static_cast<int>(reason),
+                                       retryMs);
+            }
+
             if (handled != 0) {
                 return;
             }
@@ -1074,6 +1132,15 @@ private:
         }
 
         return script;
+    }
+
+    bool scriptHasPublic(IPawnScript* script, const char* publicName) const {
+        if (script == nullptr || publicName == nullptr || publicName[0] == '\0') {
+            return false;
+        }
+
+        int index = std::numeric_limits<int>::max();
+        return script->FindPublic(publicName, &index) == AMX_ERR_NONE && index != std::numeric_limits<int>::max();
     }
 
     IPawnScript* scriptFromAmx(AMX* amx) const {
