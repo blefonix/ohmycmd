@@ -1,10 +1,12 @@
 #include <open.mp>
 #include <ohmycmd>
+#include <ohmycmd_compat>
 
 #define OMC_FLAG_ADMIN (1)
 
 forward OMC_Test(playerid, const args[]);
 forward OMC_Pay(playerid, const args[]);
+forward CMD_legacy(playerid, const args[]);
 forward OhmyCmd_OnCheckAccess(playerid, const command[], flags);
 forward OhmyCmd_OnPolicyDeny(playerid, const command[], reason, retry_ms);
 
@@ -27,6 +29,12 @@ public OnGameModeInit()
     }
 
     OhmyCmd_SetCooldown("pay", 250, 1000);
+
+    if (!OhmyCmd_MigrateYCMD("legacy", 0, "Compat migration sample", "/legacy [text]"))
+    {
+        print("[ohmycmd-smoke] failed to compat-register /legacy");
+        return 1;
+    }
 
     printf("[ohmycmd-smoke] registered commands, total=%d", OhmyCmd_Count());
     return 1;
@@ -67,6 +75,20 @@ public OMC_Pay(playerid, const args[])
     new out[144];
     format(out, sizeof out, "[ohmycmd-smoke] /pay -> target=%d amount=%d", targetID, amount);
     SendClientMessage(playerid, 0x99FF99FF, out);
+    return 1;
+}
+
+public CMD_legacy(playerid, const args[])
+{
+    new text[96];
+    if (!OhmyCmd_ArgRest(args, 0, text, sizeof text))
+    {
+        format(text, sizeof text, "(empty)");
+    }
+
+    new out[128];
+    format(out, sizeof out, "[ohmycmd-smoke] compat /legacy text='%s'", text);
+    SendClientMessage(playerid, 0xAAAAFFFF, out);
     return 1;
 }
 

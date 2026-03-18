@@ -136,7 +136,7 @@ Useful as migration context, but not the foundation of the new system.
 
 ## Phase 2 — Pawn API (Developer-facing)
 
-- [x] **P2 initial Pawn API applied**
+- [x] **P2 initial Pawn API**
 
 ### [P2] Scope
 
@@ -167,7 +167,7 @@ Design and implement stable Pawn-facing API.
 
 ## Phase 3 — Features for RP servers
 
-- [x] **P3 initial RP feature set applied**
+- [x] **P3 initial RP feature set**
 
 ### [P3] Scope
 
@@ -190,20 +190,23 @@ Design and implement stable Pawn-facing API.
 
 ## Phase 4 — Compatibility & Migration Layer
 
+- [x] **P4 migration layer applied**
+
 ### [P4] Scope
 
-- Migration aids for existing command styles (ycmd/zcmd/pawncmd patterns).
-- Optional compatibility macros where safe.
-- Migration guide and examples.
+- [x] Migration aids for existing command styles (ycmd/zcmd/pawncmd patterns).
+- [x] Optional compatibility macros/helpers where safe.
+- [x] Migration guide and examples.
 
 ### [P4] Deliverables
 
-- `docs/migration.md`
-- side-by-side examples (old style → ohmycmd style)
+- [x] `docs/migration.md`
+- [x] Side-by-side examples (old style → ohmycmd style)
+- [x] Compatibility include (`include/ohmycmd_compat.inc`) + `OhmyCmd_RegisterCompat`
 
 ### [P4] Exit Criteria
 
-- Existing gamemode commands can be moved incrementally with minimal risk.
+- [x] Existing gamemode commands can be moved incrementally with minimal risk.
 
 ---
 

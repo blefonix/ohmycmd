@@ -10,6 +10,7 @@
 #define OMC_DENY_RATE_LIMIT       (4)
 
 native OhmyCmd_Register(const name[], const handler[], flags = 0);
+native OhmyCmd_RegisterCompat(const name[], flags = 0);
 native OhmyCmd_AddAlias(const name[], const alias[]);
 native OhmyCmd_SetFlags(const name[], flags);
 native OhmyCmd_SetDescription(const name[], const text[]);
@@ -30,6 +31,26 @@ native bool:OhmyCmd_ArgRest(const input[], index, output[], size = sizeof output
 stock bool:OhmyCmd_RegisterEx(const name[], const handler[], flags = 0, const description[] = "", const usage[] = "")
 {
     if (!OhmyCmd_Register(name, handler, flags))
+    {
+        return false;
+    }
+
+    if (description[0] != '\0')
+    {
+        OhmyCmd_SetDescription(name, description);
+    }
+
+    if (usage[0] != '\0')
+    {
+        OhmyCmd_SetUsage(name, usage);
+    }
+
+    return true;
+}
+
+stock bool:OhmyCmd_RegisterCompatEx(const name[], flags = 0, const description[] = "", const usage[] = "")
+{
+    if (!OhmyCmd_RegisterCompat(name, flags))
     {
         return false;
     }

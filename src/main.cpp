@@ -244,8 +244,9 @@ public:
 
     // PawnEventHandler
     void onAmxLoad(IPawnScript& script) override {
-        static const std::array<AMX_NATIVE_INFO, 15> kNatives = {{
+        static const std::array<AMX_NATIVE_INFO, 16> kNatives = {{
             { "OhmyCmd_Register", &OhMyCmdComponent::Native_OhmyCmd_Register },
+            { "OhmyCmd_RegisterCompat", &OhMyCmdComponent::Native_OhmyCmd_RegisterCompat },
             { "OhmyCmd_AddAlias", &OhMyCmdComponent::Native_OhmyCmd_AddAlias },
             { "OhmyCmd_SetFlags", &OhMyCmdComponent::Native_OhmyCmd_SetFlags },
             { "OhmyCmd_SetDescription", &OhMyCmdComponent::Native_OhmyCmd_SetDescription },
@@ -317,6 +318,10 @@ private:
 
     static cell Native_OhmyCmd_Register(AMX* amx, cell* params) {
         return g_instance != nullptr ? g_instance->nativeRegister(amx, params) : 0;
+    }
+
+    static cell Native_OhmyCmd_RegisterCompat(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeRegisterCompat(amx, params) : 0;
     }
 
     static cell Native_OhmyCmd_AddAlias(AMX* amx, cell* params) {
@@ -401,6 +406,104 @@ private:
                     break;
                 case ohmycmd::RegisterResult::AlreadyExists:
                     core_->logLn(LogLevel::Warning, "[ohmycmd] register failed: command already exists: /%s", name.c_str());
+                    break;
+            }
+        }
+
+        return result == ohmycmd::RegisterResult::Ok ? 1 : 0;
+    }
+
+    cell nativeRegisterCompat(AMX* amx, cell* params) {
+        const int argc = params[0] / static_cast<int>(sizeof(cell));
+        if (argc < 1) {
+            return 0;
+        }
+
+        const std::string inputName = readAmxString(amx, params[1]);
+        const uint32_t flags = argc >= 2 ? static_cast<uint32_t>(params[2]) : 0U;
+
+        IPawnScript* script = mainScript();
+        if (script == nullptr) {
+            if (core_ != nullptr) {
+                core_->logLn(LogLevel::Warning, "[ohmycmd] register-compat failed: main script unavailable");
+            }
+            return 0;
+        }
+
+        std::string normalized = trim(inputName);
+        if (!normalized.empty() && normalized.front() == '/') {
+            normalized.erase(normalized.begin());
+        }
+        if (normalized.empty() || normalized.find_first_of(" \t\r\n") != std::string::npos) {
+            if (core_ != nullptr) {
+                core_->logLn(LogLevel::Warning, "[ohmycmd] register-compat failed: invalid command name '%s'", inputName.c_str());
+            }
+            return 0;
+        }
+
+        const std::string lower = toLowerAscii(normalized);
+        std::vector<std::string> candidates;
+        candidates.reserve(8);
+
+        auto pushCandidate = [&candidates](std::string value) {
+            if (value.empty()) {
+                return;
+            }
+
+            if (std::find(candidates.begin(), candidates.end(), value) == candidates.end()) {
+                candidates.push_back(std::move(value));
+            }
+        };
+
+        pushCandidate("OMC_" + normalized);
+        pushCandidate("CMD_" + normalized);
+        pushCandidate("cmd_" + normalized);
+        pushCandidate(normalized);
+
+        if (lower != normalized) {
+            pushCandidate("OMC_" + lower);
+            pushCandidate("CMD_" + lower);
+            pushCandidate("cmd_" + lower);
+            pushCandidate(lower);
+        }
+
+        std::string resolvedHandler;
+        for (const std::string& candidate : candidates) {
+            int publicIndex = std::numeric_limits<int>::max();
+            if (script->FindPublic(candidate.c_str(), &publicIndex) == AMX_ERR_NONE && publicIndex != std::numeric_limits<int>::max()) {
+                resolvedHandler = candidate;
+                break;
+            }
+        }
+
+        if (resolvedHandler.empty()) {
+            if (core_ != nullptr) {
+                core_->logLn(LogLevel::Warning,
+                             "[ohmycmd] register-compat failed: no compatible public found for /%s (tried %d patterns)",
+                             normalized.c_str(),
+                             static_cast<int>(candidates.size()));
+            }
+            return 0;
+        }
+
+        const ohmycmd::RegisterResult result = registry_.registerCommand(normalized, resolvedHandler, flags);
+        if (core_ != nullptr) {
+            switch (result) {
+                case ohmycmd::RegisterResult::Ok:
+                    core_->logLn(LogLevel::Debug,
+                                 "[ohmycmd] register-compat: /%s -> %s (flags=%u)",
+                                 normalized.c_str(),
+                                 resolvedHandler.c_str(),
+                                 flags);
+                    break;
+                case ohmycmd::RegisterResult::InvalidName:
+                    core_->logLn(LogLevel::Warning, "[ohmycmd] register-compat failed: invalid command name /%s", normalized.c_str());
+                    break;
+                case ohmycmd::RegisterResult::InvalidHandler:
+                    core_->logLn(LogLevel::Warning, "[ohmycmd] register-compat failed: invalid handler for /%s", normalized.c_str());
+                    break;
+                case ohmycmd::RegisterResult::AlreadyExists:
+                    core_->logLn(LogLevel::Warning, "[ohmycmd] register-compat failed: command already exists /%s", normalized.c_str());
                     break;
             }
         }

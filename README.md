@@ -12,34 +12,20 @@
 
 v0.x. Early development.
 
-Current phase: **P3 (RP-oriented features)**.
+Current phase: **P4 (Compatibility & Migration Layer)**.
 
-P3 snapshot includes:
+P4 snapshot includes:
 
 - runtime command registry/parser/dispatcher core,
-- Pawn registration API:
-  - `OhmyCmd_Register`
-  - `OhmyCmd_AddAlias`
-  - `OhmyCmd_SetFlags`
-  - `OhmyCmd_SetDescription`
-  - `OhmyCmd_SetUsage`
-  - `OhmyCmd_SetCooldown`
-  - `OhmyCmd_SetRateLimit`
-  - `OhmyCmd_Execute`
-  - `OhmyCmd_Count`
-- policy hooks:
-  - `OhmyCmd_OnCheckAccess(playerid, command, flags)`
-  - `OhmyCmd_OnPolicyDeny(playerid, command, reason, retry_ms)`
-- typed arg helper natives:
-  - `OhmyCmd_ArgCount`
-  - `OhmyCmd_ArgInt`
-  - `OhmyCmd_ArgFloat`
-  - `OhmyCmd_ArgPlayerID`
-  - `OhmyCmd_ArgString`
-  - `OhmyCmd_ArgRest`
-- built-in usage/help responses:
-  - `/cmd help` or `/cmd ?`
-  - usage line shown when handler returns `0`
+- policy pre-check system (permissions, cooldowns, rate-limit),
+- typed arg helper natives,
+- compatibility registration native:
+  - `OhmyCmd_RegisterCompat`
+- compatibility include:
+  - `include/ohmycmd_compat.inc`
+  - helpers: `OhmyCmd_MigrateYCMD`, `OhmyCmd_MigrateZCMD`, `OhmyCmd_MigrateLegacy`
+- migration docs:
+  - `docs/migration.md` with side-by-side examples.
 
 ## Build (Linux)
 
@@ -59,16 +45,21 @@ Notes:
 
 - Build is configured as 32-bit (`ELF32`) by default for open.mp runtime compatibility.
 
-## Pawn include (qawno/include)
+## Pawn includes (qawno/include)
 
 - `include/ohmycmd.inc`
+- `include/ohmycmd_compat.inc`
 
 Tiny smoke script:
 
 - `tests/smoke/ohmycmd_smoke.pwn`
-  - registers `/test` and `/pay`
+  - registers native + compat commands (`/test`, `/pay`, `/legacy`)
   - demonstrates cooldown/rate-limit setup
   - demonstrates typed args and permission hook
+
+## Migration docs
+
+- See `docs/migration.md`.
 
 ## License
 
