@@ -76,15 +76,17 @@ Useful as migration context, but not the foundation of the new system.
 
 ## Short-term TODOs
 
-- [ ] Create component skeleton (`CMakeLists.txt`, `src/main.cpp`)
-- [ ] Add SDK bootstrap and logging
-- [ ] Implement `OhmyCmd_Register` MVP
-- [ ] Implement one end-to-end command execution path
-- [ ] Add a tiny Pawn test script for smoke validation
+- [x] Create component skeleton (`CMakeLists.txt`, `src/main.cpp`)
+- [x] Add SDK bootstrap and logging
+- [x] Implement `OhmyCmd_Register` MVP
+- [x] Implement one end-to-end command execution path (`/test` via runtime core)
+- [x] Add a tiny Pawn test script for smoke validation
 
 ---
 
 ## Phase 0 — Foundation (MVP bootstrap)
+
+- [x] **P0 completed**
 
 ### [P0] Scope
 
@@ -106,6 +108,9 @@ Useful as migration context, but not the foundation of the new system.
 ---
 
 ## Phase 1 — Runtime Core
+
+- [x] **P1 runtime MVP completed**
+- [x] Runtime core skeleton (registry/parser/dispatcher)
 
 ### [P1] Scope
 

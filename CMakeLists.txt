@@ -10,14 +10,22 @@ add_subdirectory(external/open.mp-sdk)
 
 add_library(ohmycmd MODULE
     src/main.cpp
+    src/command_registry.cpp
+    src/command_parser.cpp
 )
 
 target_link_libraries(ohmycmd PRIVATE OMP-SDK)
+
+target_include_directories(ohmycmd PRIVATE
+    ${PROJECT_SOURCE_DIR}/external/pawn-amx
+    ${PROJECT_SOURCE_DIR}/external/pawn-amx/amx
+)
 
 target_compile_definitions(ohmycmd PRIVATE
     OHMYCMD_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
     OHMYCMD_VERSION_MINOR=${PROJECT_VERSION_MINOR}
     OHMYCMD_VERSION_PATCH=${PROJECT_VERSION_PATCH}
+    HAVE_STDINT_H=1
 )
 
 # Current open.mp runtime in Blefonix is 32-bit; keep component ABI compatible by default.
