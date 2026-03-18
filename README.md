@@ -12,6 +12,19 @@
 
 v0.x. Early development.
 
+## Build (Linux)
+
+```bash
+git clone --recursive git@github.com:blefonix/ohmycmd.git
+cd ohmycmd
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release -j$(nproc)
+```
+
+Output:
+
+- `build/ohmycmd.so`
+
 ## License
 
 MIT © 2026-present Nazarii Korniienko

@@ -23,6 +23,67 @@ Build a modern, stable, and fast command processor for Pawn scripts that:
 
 ---
 
+## Design Notes
+
+### AMX interop fundamentals
+
+Use these concepts and APIs for Pawn integration:
+
+- `amx_Register` — register natives
+- `amx_FindPublic` + `amx_Exec` — resolve and call Pawn publics
+- `amx_GetAddr` / `amx_GetString` / `amx_SetString` — safe parameter and string handling
+- `amx_ftoc` / `amx_ctof` — float-cell conversion without bit corruption
+- `amx_Allot` / `amx_Push` / `amx_PushArray` / `amx_PushString` / `amx_Release` — explicit memory lifecycle for by-ref args
+
+### Safety rules
+
+- Prefer explicit memory handling and always pair allocation with `amx_Release`.
+- Prefer predictable string handling (`amx_GetString`/`amx_SetString`) over shortcut macros.
+- Treat callback/public invocation as failure-prone I/O and check return codes.
+
+### Plugin architecture principles
+
+- deterministic command resolution
+- strict registration lifecycle
+- clear error paths and logs
+
+## Avoid / Not Primary
+
+### Legacy SA:MP-native calling stacks (Invoke-centric flow)
+
+We are not building around Invoke as the core architecture.
+
+### Old SA:MP-specific export/tooling assumptions
+
+- `.def`-driven workflows and old plugin boilerplate are historical references, not primary design constraints.
+
+### ALS-heavy callback-hooking patterns as the core strategy
+
+Useful as migration context, but not the foundation of the new system.
+
+## Architecture Decision
+
+- Runtime model: **open.mp component**
+- Core dependency: **open.mp SDK**
+- Command engine: own registry/dispatcher/parser design (not PTL/samp-plugin-sdk compatibility layer)
+
+## Practical Implications
+
+1. Build a minimal component lifecycle first (ready/reset/free).
+2. Add command registry and dispatch core.
+3. Expose Pawn API via natives in `ohmycmd.inc`.
+4. Keep migration helpers optional and layered on top.
+
+## Short-term TODOs
+
+- [ ] Create component skeleton (`CMakeLists.txt`, `src/main.cpp`)
+- [ ] Add SDK bootstrap and logging
+- [ ] Implement `OhmyCmd_Register` MVP
+- [ ] Implement one end-to-end command execution path
+- [ ] Add a tiny Pawn test script for smoke validation
+
+---
+
 ## Phase 0 — Foundation (MVP bootstrap)
 
 ### [P0] Scope
