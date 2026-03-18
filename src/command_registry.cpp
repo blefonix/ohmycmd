@@ -106,6 +106,28 @@ AliasResult CommandRegistry::addAlias(std::string_view name, std::string_view al
     return AliasResult::Ok;
 }
 
+MetadataResult CommandRegistry::setDescription(std::string_view name, std::string_view text) {
+    const std::string normalizedName = normalizeIdentifier(name);
+    auto commandIt = commandsByName_.find(normalizedName);
+    if (commandIt == commandsByName_.end()) {
+        return MetadataResult::CommandNotFound;
+    }
+
+    commandIt->second.description = trim(text);
+    return MetadataResult::Ok;
+}
+
+MetadataResult CommandRegistry::setUsage(std::string_view name, std::string_view text) {
+    const std::string normalizedName = normalizeIdentifier(name);
+    auto commandIt = commandsByName_.find(normalizedName);
+    if (commandIt == commandsByName_.end()) {
+        return MetadataResult::CommandNotFound;
+    }
+
+    commandIt->second.usage = trim(text);
+    return MetadataResult::Ok;
+}
+
 const CommandSpec* CommandRegistry::find(std::string_view token) const {
     const std::string normalized = normalizeIdentifier(token);
     if (normalized.empty()) {

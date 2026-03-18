@@ -14,6 +14,8 @@ struct CommandSpec {
     std::string name;
     std::string handlerPublic;
     uint32_t flags = 0;
+    std::string description;
+    std::string usage;
     std::vector<std::string> aliases;
 };
 
@@ -31,10 +33,18 @@ enum class AliasResult {
     AliasTaken
 };
 
+enum class MetadataResult {
+    Ok,
+    CommandNotFound
+};
+
 class CommandRegistry {
 public:
     RegisterResult registerCommand(std::string_view name, std::string_view handlerPublic, uint32_t flags);
     AliasResult addAlias(std::string_view name, std::string_view alias);
+
+    MetadataResult setDescription(std::string_view name, std::string_view text);
+    MetadataResult setUsage(std::string_view name, std::string_view text);
 
     const CommandSpec* find(std::string_view token) const;
 

@@ -12,9 +12,19 @@
 
 v0.x. Early development.
 
-Current phase: **P1 (Runtime Core)**.
+Current phase: **P2 (Pawn API)**.
 
-P1 snapshot includes command registry/parser/dispatcher core, `OhmyCmd_Register` MVP native, and a `/test` end-to-end path validated by smoke script.
+P2 snapshot includes:
+
+- runtime command registry/parser/dispatcher core,
+- Pawn registration API:
+  - `OhmyCmd_Register`
+  - `OhmyCmd_AddAlias`
+  - `OhmyCmd_SetDescription`
+  - `OhmyCmd_SetUsage`
+  - `OhmyCmd_Execute`
+  - `OhmyCmd_Count`
+- Pawn include helper: `OhmyCmd_RegisterEx(...)`.
 
 ## Build (Linux)
 
@@ -34,27 +44,19 @@ Notes:
 
 - Build is configured as 32-bit (`ELF32`) by default for open.mp runtime compatibility.
 
-## P1 Runtime Core Snapshot
-
-Implemented in current branch:
-
-- command parser (`src/command_parser.*`)
-- command registry (`src/command_registry.*`)
-- dispatcher via `onPlayerCommandText`
-- Pawn registration MVP native: `OhmyCmd_Register`
-
-Pawn include (for qawno/include):
+## Pawn include (qawno/include)
 
 - `include/ohmycmd.inc`
 
 Tiny smoke script:
 
 - `tests/smoke/ohmycmd_smoke.pwn`
-  - registers `/test` with `OhmyCmd_Register`
+  - registers `/test` with `OhmyCmd_RegisterEx`
+  - sets description + usage
   - adds alias `/t`
 
 ## License
 
 MIT © 2026-present Nazarii Korniienko
 
-The repository itself is MIT licensed, but the project modules may have different licenses.
+The repository itself is MIT licensed, but project modules may have different licenses.

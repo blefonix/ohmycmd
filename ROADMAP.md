@@ -136,6 +136,8 @@ Useful as migration context, but not the foundation of the new system.
 
 ## Phase 2 — Pawn API (Developer-facing)
 
+- [x] **P2 initial Pawn API applied**
+
 ### [P2] Scope
 
 Design and implement stable Pawn-facing API.
@@ -150,14 +152,16 @@ Design and implement stable Pawn-facing API.
   - `OhmyCmd_SetUsage(const name[], const usage[])`
 - Optional execution helper:
   - `OhmyCmd_Execute(playerid, const input[])`
+- Utility:
+  - `OhmyCmd_Count()`
 
 ### [P2] Pawn include
 
-- `ohmycmd.inc` with lightweight macros for ergonomic declaration.
+- `ohmycmd.inc` with lightweight helper API (`OhmyCmd_RegisterEx(...)`).
 
 ### [P2] Exit Criteria
 
-- Pawn script can register commands on mode init and receive callbacks with params.
+- [x] Pawn script can register commands on mode init and receive callbacks with params.
 
 ---
 

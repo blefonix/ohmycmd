@@ -5,7 +5,7 @@ forward OMC_Test(playerid, const args[]);
 
 public OnGameModeInit()
 {
-    if (!OhmyCmd_Register("test", "OMC_Test"))
+    if (!OhmyCmd_RegisterEx("test", "OMC_Test", 0, "Smoke test command", "/test [args]"))
     {
         print("[ohmycmd-smoke] failed to register /test");
         return 1;

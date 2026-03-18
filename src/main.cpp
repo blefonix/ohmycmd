@@ -108,9 +108,11 @@ public:
 
     // PawnEventHandler
     void onAmxLoad(IPawnScript& script) override {
-        static const std::array<AMX_NATIVE_INFO, 4> kNatives = {{
+        static const std::array<AMX_NATIVE_INFO, 6> kNatives = {{
             { "OhmyCmd_Register", &OhMyCmdComponent::Native_OhmyCmd_Register },
             { "OhmyCmd_AddAlias", &OhMyCmdComponent::Native_OhmyCmd_AddAlias },
+            { "OhmyCmd_SetDescription", &OhMyCmdComponent::Native_OhmyCmd_SetDescription },
+            { "OhmyCmd_SetUsage", &OhMyCmdComponent::Native_OhmyCmd_SetUsage },
             { "OhmyCmd_Execute", &OhMyCmdComponent::Native_OhmyCmd_Execute },
             { "OhmyCmd_Count", &OhMyCmdComponent::Native_OhmyCmd_Count },
         }};
@@ -146,6 +148,14 @@ private:
 
     static cell Native_OhmyCmd_AddAlias(AMX* amx, cell* params) {
         return g_instance != nullptr ? g_instance->nativeAddAlias(amx, params) : 0;
+    }
+
+    static cell Native_OhmyCmd_SetDescription(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeSetDescription(amx, params) : 0;
+    }
+
+    static cell Native_OhmyCmd_SetUsage(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeSetUsage(amx, params) : 0;
     }
 
     static cell Native_OhmyCmd_Execute(AMX* amx, cell* params) {
@@ -217,6 +227,54 @@ private:
         }
 
         return result == ohmycmd::AliasResult::Ok ? 1 : 0;
+    }
+
+    cell nativeSetDescription(AMX* amx, cell* params) {
+        const int argc = params[0] / static_cast<int>(sizeof(cell));
+        if (argc < 2) {
+            return 0;
+        }
+
+        const std::string name = readAmxString(amx, params[1]);
+        const std::string text = readAmxString(amx, params[2]);
+
+        const ohmycmd::MetadataResult result = registry_.setDescription(name, text);
+        if (core_ != nullptr) {
+            switch (result) {
+                case ohmycmd::MetadataResult::Ok:
+                    core_->logLn(LogLevel::Debug, "[ohmycmd] description set: /%s", name.c_str());
+                    break;
+                case ohmycmd::MetadataResult::CommandNotFound:
+                    core_->logLn(LogLevel::Warning, "[ohmycmd] description failed: command not found /%s", name.c_str());
+                    break;
+            }
+        }
+
+        return result == ohmycmd::MetadataResult::Ok ? 1 : 0;
+    }
+
+    cell nativeSetUsage(AMX* amx, cell* params) {
+        const int argc = params[0] / static_cast<int>(sizeof(cell));
+        if (argc < 2) {
+            return 0;
+        }
+
+        const std::string name = readAmxString(amx, params[1]);
+        const std::string text = readAmxString(amx, params[2]);
+
+        const ohmycmd::MetadataResult result = registry_.setUsage(name, text);
+        if (core_ != nullptr) {
+            switch (result) {
+                case ohmycmd::MetadataResult::Ok:
+                    core_->logLn(LogLevel::Debug, "[ohmycmd] usage set: /%s", name.c_str());
+                    break;
+                case ohmycmd::MetadataResult::CommandNotFound:
+                    core_->logLn(LogLevel::Warning, "[ohmycmd] usage failed: command not found /%s", name.c_str());
+                    break;
+            }
+        }
+
+        return result == ohmycmd::MetadataResult::Ok ? 1 : 0;
     }
 
     cell nativeExecute(AMX* amx, cell* params) {
