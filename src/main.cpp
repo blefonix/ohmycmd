@@ -182,6 +182,8 @@ public:
         globalCooldownUntil_.clear();
         playerCooldownUntil_.clear();
         rateBuckets_.clear();
+        commandArrays_.clear();
+        nextArrayHandle_ = 1;
 
         if (core_ != nullptr) {
             core_->printLn("[ohmycmd] reset: registry and policy state cleared");
@@ -244,17 +246,35 @@ public:
 
     // PawnEventHandler
     void onAmxLoad(IPawnScript& script) override {
-        static const std::array<AMX_NATIVE_INFO, 16> kNatives = {{
+        static const std::array<AMX_NATIVE_INFO, 27> kNatives = {{
             { "OMC_Register", &OhMyCmdComponent::Native_OhmyCmd_Register },
+            { "OMC_RegAlias", &OhMyCmdComponent::Native_OhmyCmd_RegAlias },
             { "OMC_RegisterCompat", &OhMyCmdComponent::Native_OhmyCmd_RegisterCompat },
             { "OMC_AddAlias", &OhMyCmdComponent::Native_OhmyCmd_AddAlias },
+
             { "OMC_SetFlags", &OhMyCmdComponent::Native_OhmyCmd_SetFlags },
+            { "OMC_GetFlags", &OhMyCmdComponent::Native_OhmyCmd_GetFlags },
+
             { "OMC_SetDescription", &OhMyCmdComponent::Native_OhmyCmd_SetDescription },
+            { "OMC_GetDescription", &OhMyCmdComponent::Native_OhmyCmd_GetDescription },
+
             { "OMC_SetUsage", &OhMyCmdComponent::Native_OhmyCmd_SetUsage },
             { "OMC_SetCooldown", &OhMyCmdComponent::Native_OhmyCmd_SetCooldown },
             { "OMC_SetRateLimit", &OhMyCmdComponent::Native_OhmyCmd_SetRateLimit },
+
+            { "OMC_RenameCommand", &OhMyCmdComponent::Native_OhmyCmd_RenameCommand },
+            { "OMC_CommandExists", &OhMyCmdComponent::Native_OhmyCmd_CommandExists },
+            { "OMC_DeleteCommand", &OhMyCmdComponent::Native_OhmyCmd_DeleteCommand },
+
+            { "OMC_GetCommandArray", &OhMyCmdComponent::Native_OhmyCmd_GetCommandArray },
+            { "OMC_GetAliasArray", &OhMyCmdComponent::Native_OhmyCmd_GetAliasArray },
+            { "OMC_GetArraySize", &OhMyCmdComponent::Native_OhmyCmd_GetArraySize },
+            { "OMC_GetCommandName", &OhMyCmdComponent::Native_OhmyCmd_GetCommandName },
+            { "OMC_FreeArray", &OhMyCmdComponent::Native_OhmyCmd_FreeArray },
+
             { "OMC_Execute", &OhMyCmdComponent::Native_OhmyCmd_Execute },
             { "OMC_Count", &OhMyCmdComponent::Native_OhmyCmd_Count },
+
             { "OMC_ArgCount", &OhMyCmdComponent::Native_OhmyCmd_ArgCount },
             { "OMC_ArgInt", &OhMyCmdComponent::Native_OhmyCmd_ArgInt },
             { "OMC_ArgFloat", &OhMyCmdComponent::Native_OhmyCmd_ArgFloat },
@@ -284,6 +304,8 @@ public:
             globalCooldownUntil_.clear();
             playerCooldownUntil_.clear();
             rateBuckets_.clear();
+            commandArrays_.clear();
+            nextArrayHandle_ = 1;
 
             if (core_ != nullptr) {
                 core_->logLn(LogLevel::Debug, "[ohmycmd] main script unloaded: registry/policy state cleared");
@@ -320,6 +342,10 @@ private:
         return g_instance != nullptr ? g_instance->nativeRegister(amx, params) : 0;
     }
 
+    static cell Native_OhmyCmd_RegAlias(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeRegAlias(amx, params) : 0;
+    }
+
     static cell Native_OhmyCmd_RegisterCompat(AMX* amx, cell* params) {
         return g_instance != nullptr ? g_instance->nativeRegisterCompat(amx, params) : 0;
     }
@@ -332,8 +358,16 @@ private:
         return g_instance != nullptr ? g_instance->nativeSetFlags(amx, params) : 0;
     }
 
+    static cell Native_OhmyCmd_GetFlags(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeGetFlags(amx, params) : -1;
+    }
+
     static cell Native_OhmyCmd_SetDescription(AMX* amx, cell* params) {
         return g_instance != nullptr ? g_instance->nativeSetDescription(amx, params) : 0;
+    }
+
+    static cell Native_OhmyCmd_GetDescription(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeGetDescription(amx, params) : 0;
     }
 
     static cell Native_OhmyCmd_SetUsage(AMX* amx, cell* params) {
@@ -346,6 +380,38 @@ private:
 
     static cell Native_OhmyCmd_SetRateLimit(AMX* amx, cell* params) {
         return g_instance != nullptr ? g_instance->nativeSetRateLimit(amx, params) : 0;
+    }
+
+    static cell Native_OhmyCmd_RenameCommand(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeRenameCommand(amx, params) : 0;
+    }
+
+    static cell Native_OhmyCmd_CommandExists(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeCommandExists(amx, params) : 0;
+    }
+
+    static cell Native_OhmyCmd_DeleteCommand(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeDeleteCommand(amx, params) : 0;
+    }
+
+    static cell Native_OhmyCmd_GetCommandArray(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeGetCommandArray(amx, params) : 0;
+    }
+
+    static cell Native_OhmyCmd_GetAliasArray(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeGetAliasArray(amx, params) : 0;
+    }
+
+    static cell Native_OhmyCmd_GetArraySize(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeGetArraySize(amx, params) : -1;
+    }
+
+    static cell Native_OhmyCmd_GetCommandName(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeGetCommandName(amx, params) : 0;
+    }
+
+    static cell Native_OhmyCmd_FreeArray(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeFreeArray(amx, params) : 0;
     }
 
     static cell Native_OhmyCmd_Execute(AMX* amx, cell* params) {
@@ -411,6 +477,34 @@ private:
         }
 
         return result == ohmycmd::RegisterResult::Ok ? 1 : 0;
+    }
+
+    cell nativeRegAlias(AMX* amx, cell* params) {
+        const int argc = params[0] / static_cast<int>(sizeof(cell));
+        if (argc < 2) {
+            return 0;
+        }
+
+        const std::string commandName = readAmxString(amx, params[1]);
+        bool ok = true;
+
+        for (int i = 2; i <= argc; ++i) {
+            const std::string alias = readAmxString(amx, params[i]);
+            const ohmycmd::AliasResult result = registry_.addAlias(commandName, alias);
+            if (result != ohmycmd::AliasResult::Ok) {
+                ok = false;
+
+                if (core_ != nullptr) {
+                    core_->logLn(LogLevel::Warning,
+                                 "[ohmycmd] reg-alias failed: /%s -> /%s (code=%d)",
+                                 commandName.c_str(),
+                                 alias.c_str(),
+                                 static_cast<int>(result));
+                }
+            }
+        }
+
+        return ok ? 1 : 0;
     }
 
     cell nativeRegisterCompat(AMX* amx, cell* params) {
@@ -568,6 +662,22 @@ private:
         return result == ohmycmd::MetadataResult::Ok ? 1 : 0;
     }
 
+    cell nativeGetFlags(AMX* amx, cell* params) {
+        const int argc = params[0] / static_cast<int>(sizeof(cell));
+        if (argc < 1) {
+            return -1;
+        }
+
+        const std::string name = readAmxString(amx, params[1]);
+        uint32_t flags = 0;
+
+        if (registry_.getFlags(name, flags) != ohmycmd::MetadataResult::Ok) {
+            return -1;
+        }
+
+        return static_cast<cell>(flags);
+    }
+
     cell nativeSetDescription(AMX* amx, cell* params) {
         const int argc = params[0] / static_cast<int>(sizeof(cell));
         if (argc < 2) {
@@ -593,6 +703,27 @@ private:
         }
 
         return result == ohmycmd::MetadataResult::Ok ? 1 : 0;
+    }
+
+    cell nativeGetDescription(AMX* amx, cell* params) {
+        const int argc = params[0] / static_cast<int>(sizeof(cell));
+        if (argc < 2) {
+            return 0;
+        }
+
+        const std::string name = readAmxString(amx, params[1]);
+        const size_t outputSize = argc >= 3 ? static_cast<size_t>(params[3]) : 1U;
+        if (outputSize == 0) {
+            return 0;
+        }
+
+        std::string text;
+        if (registry_.getDescription(name, text) != ohmycmd::MetadataResult::Ok) {
+            (void)writeAmxString(amx, params[2], "", outputSize);
+            return 0;
+        }
+
+        return writeAmxString(amx, params[2], text, outputSize) ? 1 : 0;
     }
 
     cell nativeSetUsage(AMX* amx, cell* params) {
@@ -697,6 +828,181 @@ private:
         }
 
         return result == ohmycmd::MetadataResult::Ok ? 1 : 0;
+    }
+
+    cell nativeRenameCommand(AMX* amx, cell* params) {
+        const int argc = params[0] / static_cast<int>(sizeof(cell));
+        if (argc < 2) {
+            return 0;
+        }
+
+        const std::string oldName = readAmxString(amx, params[1]);
+        const std::string newName = readAmxString(amx, params[2]);
+
+        const ohmycmd::CommandSpec* before = registry_.find(oldName);
+        const std::string oldCanonical = before != nullptr ? before->name : std::string();
+
+        const ohmycmd::RenameResult result = registry_.renameCommand(oldName, newName);
+        if (result != ohmycmd::RenameResult::Ok) {
+            if (core_ != nullptr) {
+                core_->logLn(LogLevel::Warning,
+                             "[ohmycmd] rename failed: /%s -> /%s (code=%d)",
+                             oldName.c_str(),
+                             newName.c_str(),
+                             static_cast<int>(result));
+            }
+            return 0;
+        }
+
+        const ohmycmd::CommandSpec* after = registry_.find(newName);
+        const std::string newCanonical = after != nullptr ? after->name : std::string();
+
+        if (!oldCanonical.empty() && !newCanonical.empty() && oldCanonical != newCanonical) {
+            if (auto it = globalCooldownUntil_.find(oldCanonical); it != globalCooldownUntil_.end()) {
+                globalCooldownUntil_[newCanonical] = it->second;
+                globalCooldownUntil_.erase(it);
+            }
+
+            if (auto it = playerCooldownUntil_.find(oldCanonical); it != playerCooldownUntil_.end()) {
+                playerCooldownUntil_[newCanonical] = std::move(it->second);
+                playerCooldownUntil_.erase(it);
+            }
+
+            if (auto it = rateBuckets_.find(oldCanonical); it != rateBuckets_.end()) {
+                rateBuckets_[newCanonical] = std::move(it->second);
+                rateBuckets_.erase(it);
+            }
+        }
+
+        return 1;
+    }
+
+    cell nativeCommandExists(AMX* amx, cell* params) {
+        const int argc = params[0] / static_cast<int>(sizeof(cell));
+        if (argc < 1) {
+            return 0;
+        }
+
+        const std::string name = readAmxString(amx, params[1]);
+        return registry_.exists(name) ? 1 : 0;
+    }
+
+    cell nativeDeleteCommand(AMX* amx, cell* params) {
+        const int argc = params[0] / static_cast<int>(sizeof(cell));
+        if (argc < 1) {
+            return 0;
+        }
+
+        const std::string name = readAmxString(amx, params[1]);
+        const ohmycmd::CommandSpec* before = registry_.find(name);
+        if (before == nullptr) {
+            return 0;
+        }
+
+        std::string normalized = toLowerAscii(trim(name));
+        if (!normalized.empty() && normalized.front() == '/') {
+            normalized.erase(normalized.begin());
+        }
+
+        const bool deletingCanonical = normalized == before->name;
+        const std::string canonical = before->name;
+
+        if (registry_.deleteCommand(name) != ohmycmd::DeleteResult::Ok) {
+            return 0;
+        }
+
+        if (deletingCanonical) {
+            globalCooldownUntil_.erase(canonical);
+            playerCooldownUntil_.erase(canonical);
+            rateBuckets_.erase(canonical);
+        }
+
+        return 1;
+    }
+
+    cell nativeGetCommandArray(AMX* amx, cell* params) {
+        (void)amx;
+        (void)params;
+
+        const int handle = createCommandArray(registry_.listCommands());
+        return static_cast<cell>(handle);
+    }
+
+    cell nativeGetAliasArray(AMX* amx, cell* params) {
+        const int argc = params[0] / static_cast<int>(sizeof(cell));
+        if (argc < 1) {
+            return 0;
+        }
+
+        const std::string name = readAmxString(amx, params[1]);
+        if (!registry_.exists(name)) {
+            return 0;
+        }
+
+        const int handle = createCommandArray(registry_.listAliases(name));
+        return static_cast<cell>(handle);
+    }
+
+    cell nativeGetArraySize(AMX* amx, cell* params) {
+        (void)amx;
+        const int argc = params[0] / static_cast<int>(sizeof(cell));
+        if (argc < 1) {
+            return -1;
+        }
+
+        const int handle = static_cast<int>(params[1]);
+        auto it = commandArrays_.find(handle);
+        if (it == commandArrays_.end()) {
+            return -1;
+        }
+
+        return static_cast<cell>(it->second.size());
+    }
+
+    cell nativeGetCommandName(AMX* amx, cell* params) {
+        const int argc = params[0] / static_cast<int>(sizeof(cell));
+        if (argc < 3) {
+            return 0;
+        }
+
+        const int handle = static_cast<int>(params[1]);
+        const int index = static_cast<int>(params[2]);
+        const size_t outputSize = argc >= 4 ? static_cast<size_t>(params[4]) : 1U;
+        if (index < 0 || outputSize == 0) {
+            return 0;
+        }
+
+        auto it = commandArrays_.find(handle);
+        if (it == commandArrays_.end()) {
+            return 0;
+        }
+
+        if (static_cast<size_t>(index) >= it->second.size()) {
+            (void)writeAmxString(amx, params[3], "", outputSize);
+            return 0;
+        }
+
+        return writeAmxString(amx, params[3], it->second[static_cast<size_t>(index)], outputSize) ? 1 : 0;
+    }
+
+    cell nativeFreeArray(AMX* amx, cell* params) {
+        const int argc = params[0] / static_cast<int>(sizeof(cell));
+        if (argc < 1) {
+            return 0;
+        }
+
+        cell handleCell = 0;
+        if (!readAmxCell(amx, params[1], handleCell)) {
+            return 0;
+        }
+
+        const int handle = static_cast<int>(handleCell);
+        if (handle > 0) {
+            commandArrays_.erase(handle);
+        }
+
+        (void)writeAmxCell(amx, params[1], 0);
+        return 1;
     }
 
     cell nativeExecute(AMX* amx, cell* params) {
@@ -1126,6 +1432,21 @@ private:
         return true;
     }
 
+    bool readAmxCell(AMX* amx, cell addr, cell& out) const {
+        IPawnScript* script = scriptFromAmx(amx);
+        if (script == nullptr) {
+            return false;
+        }
+
+        cell* physAddr = nullptr;
+        if (script->GetAddr(addr, &physAddr) != AMX_ERR_NONE || physAddr == nullptr) {
+            return false;
+        }
+
+        out = *physAddr;
+        return true;
+    }
+
     bool writeAmxString(AMX* amx, cell addr, std::string_view value, size_t maxCells) const {
         IPawnScript* script = scriptFromAmx(amx);
         if (script == nullptr || maxCells == 0) {
@@ -1138,6 +1459,21 @@ private:
         }
 
         return script->SetString(physAddr, StringView(value.data(), value.size()), false, false, maxCells) == AMX_ERR_NONE;
+    }
+
+    int createCommandArray(std::vector<std::string> values) {
+        if (nextArrayHandle_ <= 0) {
+            nextArrayHandle_ = 1;
+        }
+
+        int handle = nextArrayHandle_;
+        while (handle <= 0 || commandArrays_.find(handle) != commandArrays_.end()) {
+            ++handle;
+        }
+
+        nextArrayHandle_ = handle + 1;
+        commandArrays_[handle] = std::move(values);
+        return handle;
     }
 
     void detachEventHandlers() {
@@ -1165,6 +1501,9 @@ private:
     std::unordered_map<std::string, TimePoint> globalCooldownUntil_;
     std::unordered_map<std::string, std::unordered_map<int, TimePoint>> playerCooldownUntil_;
     std::unordered_map<std::string, std::unordered_map<int, RateBucket>> rateBuckets_;
+
+    int nextArrayHandle_ = 1;
+    std::unordered_map<int, std::vector<std::string>> commandArrays_;
 };
 
 } // namespace

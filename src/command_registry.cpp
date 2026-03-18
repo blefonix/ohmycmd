@@ -54,6 +54,34 @@ std::string CommandRegistry::normalizeIdentifier(std::string_view value) {
     return out;
 }
 
+CommandRegistry::CommandMap::iterator CommandRegistry::findCommandByToken(std::string_view token) {
+    const std::string normalized = normalizeIdentifier(token);
+    if (normalized.empty()) {
+        return commandsByName_.end();
+    }
+
+    auto aliasIt = aliasToName_.find(normalized);
+    if (aliasIt == aliasToName_.end()) {
+        return commandsByName_.end();
+    }
+
+    return commandsByName_.find(aliasIt->second);
+}
+
+CommandRegistry::CommandMap::const_iterator CommandRegistry::findCommandByToken(std::string_view token) const {
+    const std::string normalized = normalizeIdentifier(token);
+    if (normalized.empty()) {
+        return commandsByName_.end();
+    }
+
+    auto aliasIt = aliasToName_.find(normalized);
+    if (aliasIt == aliasToName_.end()) {
+        return commandsByName_.end();
+    }
+
+    return commandsByName_.find(aliasIt->second);
+}
+
 RegisterResult CommandRegistry::registerCommand(std::string_view name, std::string_view handlerPublic, uint32_t flags) {
     const std::string normalizedName = normalizeIdentifier(name);
     if (normalizedName.empty()) {
@@ -85,14 +113,12 @@ RegisterResult CommandRegistry::registerCommand(std::string_view name, std::stri
 }
 
 AliasResult CommandRegistry::addAlias(std::string_view name, std::string_view alias) {
-    const std::string normalizedName = normalizeIdentifier(name);
     const std::string normalizedAlias = normalizeIdentifier(alias);
-
     if (normalizedAlias.empty()) {
         return AliasResult::InvalidAlias;
     }
 
-    auto commandIt = commandsByName_.find(normalizedName);
+    auto commandIt = findCommandByToken(name);
     if (commandIt == commandsByName_.end()) {
         return AliasResult::CommandNotFound;
     }
@@ -102,13 +128,12 @@ AliasResult CommandRegistry::addAlias(std::string_view name, std::string_view al
     }
 
     commandIt->second.aliases.push_back(normalizedAlias);
-    aliasToName_.emplace(normalizedAlias, normalizedName);
+    aliasToName_.emplace(normalizedAlias, commandIt->second.name);
     return AliasResult::Ok;
 }
 
 MetadataResult CommandRegistry::setFlags(std::string_view name, uint32_t flags) {
-    const std::string normalizedName = normalizeIdentifier(name);
-    auto commandIt = commandsByName_.find(normalizedName);
+    auto commandIt = findCommandByToken(name);
     if (commandIt == commandsByName_.end()) {
         return MetadataResult::CommandNotFound;
     }
@@ -117,9 +142,18 @@ MetadataResult CommandRegistry::setFlags(std::string_view name, uint32_t flags) 
     return MetadataResult::Ok;
 }
 
+MetadataResult CommandRegistry::getFlags(std::string_view name, uint32_t& flagsOut) const {
+    auto commandIt = findCommandByToken(name);
+    if (commandIt == commandsByName_.end()) {
+        return MetadataResult::CommandNotFound;
+    }
+
+    flagsOut = commandIt->second.flags;
+    return MetadataResult::Ok;
+}
+
 MetadataResult CommandRegistry::setDescription(std::string_view name, std::string_view text) {
-    const std::string normalizedName = normalizeIdentifier(name);
-    auto commandIt = commandsByName_.find(normalizedName);
+    auto commandIt = findCommandByToken(name);
     if (commandIt == commandsByName_.end()) {
         return MetadataResult::CommandNotFound;
     }
@@ -128,9 +162,18 @@ MetadataResult CommandRegistry::setDescription(std::string_view name, std::strin
     return MetadataResult::Ok;
 }
 
+MetadataResult CommandRegistry::getDescription(std::string_view name, std::string& textOut) const {
+    auto commandIt = findCommandByToken(name);
+    if (commandIt == commandsByName_.end()) {
+        return MetadataResult::CommandNotFound;
+    }
+
+    textOut = commandIt->second.description;
+    return MetadataResult::Ok;
+}
+
 MetadataResult CommandRegistry::setUsage(std::string_view name, std::string_view text) {
-    const std::string normalizedName = normalizeIdentifier(name);
-    auto commandIt = commandsByName_.find(normalizedName);
+    auto commandIt = findCommandByToken(name);
     if (commandIt == commandsByName_.end()) {
         return MetadataResult::CommandNotFound;
     }
@@ -144,8 +187,7 @@ MetadataResult CommandRegistry::setCooldown(std::string_view name, int globalCoo
         return MetadataResult::InvalidValue;
     }
 
-    const std::string normalizedName = normalizeIdentifier(name);
-    auto commandIt = commandsByName_.find(normalizedName);
+    auto commandIt = findCommandByToken(name);
     if (commandIt == commandsByName_.end()) {
         return MetadataResult::CommandNotFound;
     }
@@ -160,8 +202,7 @@ MetadataResult CommandRegistry::setRateLimit(std::string_view name, int maxCalls
         return MetadataResult::InvalidValue;
     }
 
-    const std::string normalizedName = normalizeIdentifier(name);
-    auto commandIt = commandsByName_.find(normalizedName);
+    auto commandIt = findCommandByToken(name);
     if (commandIt == commandsByName_.end()) {
         return MetadataResult::CommandNotFound;
     }
@@ -171,23 +212,138 @@ MetadataResult CommandRegistry::setRateLimit(std::string_view name, int maxCalls
     return MetadataResult::Ok;
 }
 
-const CommandSpec* CommandRegistry::find(std::string_view token) const {
-    const std::string normalized = normalizeIdentifier(token);
+RenameResult CommandRegistry::renameCommand(std::string_view name, std::string_view newName) {
+    const std::string normalizedOld = normalizeIdentifier(name);
+    if (normalizedOld.empty()) {
+        return RenameResult::CommandNotFound;
+    }
+
+    const std::string normalizedNew = normalizeIdentifier(newName);
+    if (normalizedNew.empty()) {
+        return RenameResult::InvalidName;
+    }
+
+    auto oldAliasIt = aliasToName_.find(normalizedOld);
+    if (oldAliasIt == aliasToName_.end()) {
+        return RenameResult::CommandNotFound;
+    }
+
+    if (normalizedNew != normalizedOld && aliasToName_.find(normalizedNew) != aliasToName_.end()) {
+        return RenameResult::NameTaken;
+    }
+
+    const std::string canonicalName = oldAliasIt->second;
+    auto commandIt = commandsByName_.find(canonicalName);
+    if (commandIt == commandsByName_.end()) {
+        return RenameResult::CommandNotFound;
+    }
+
+    // Renaming canonical command name.
+    if (normalizedOld == canonicalName) {
+        CommandSpec moved = std::move(commandIt->second);
+        moved.name = normalizedNew;
+
+        commandsByName_.erase(commandIt);
+        auto [newIt, inserted] = commandsByName_.emplace(normalizedNew, std::move(moved));
+        if (!inserted) {
+            return RenameResult::NameTaken;
+        }
+
+        aliasToName_.erase(normalizedOld);
+        aliasToName_[normalizedNew] = normalizedNew;
+
+        for (const std::string& alias : newIt->second.aliases) {
+            aliasToName_[alias] = normalizedNew;
+        }
+
+        return RenameResult::Ok;
+    }
+
+    // Renaming alias.
+    auto& aliases = commandIt->second.aliases;
+    auto aliasVecIt = std::find(aliases.begin(), aliases.end(), normalizedOld);
+    if (aliasVecIt == aliases.end()) {
+        return RenameResult::CommandNotFound;
+    }
+
+    *aliasVecIt = normalizedNew;
+    aliasToName_.erase(normalizedOld);
+    aliasToName_[normalizedNew] = canonicalName;
+
+    return RenameResult::Ok;
+}
+
+DeleteResult CommandRegistry::deleteCommand(std::string_view name) {
+    const std::string normalized = normalizeIdentifier(name);
     if (normalized.empty()) {
-        return nullptr;
+        return DeleteResult::CommandNotFound;
     }
 
     auto aliasIt = aliasToName_.find(normalized);
     if (aliasIt == aliasToName_.end()) {
-        return nullptr;
+        return DeleteResult::CommandNotFound;
     }
 
-    auto cmdIt = commandsByName_.find(aliasIt->second);
+    const std::string canonicalName = aliasIt->second;
+    auto commandIt = commandsByName_.find(canonicalName);
+    if (commandIt == commandsByName_.end()) {
+        return DeleteResult::CommandNotFound;
+    }
+
+    // Deleting canonical command removes all aliases.
+    if (normalized == canonicalName) {
+        for (const std::string& alias : commandIt->second.aliases) {
+            aliasToName_.erase(alias);
+        }
+
+        aliasToName_.erase(canonicalName);
+        commandsByName_.erase(commandIt);
+        return DeleteResult::Ok;
+    }
+
+    // Deleting alias only.
+    auto& aliases = commandIt->second.aliases;
+    aliases.erase(std::remove(aliases.begin(), aliases.end(), normalized), aliases.end());
+    aliasToName_.erase(normalized);
+
+    return DeleteResult::Ok;
+}
+
+bool CommandRegistry::exists(std::string_view token) const {
+    return find(token) != nullptr;
+}
+
+const CommandSpec* CommandRegistry::find(std::string_view token) const {
+    auto cmdIt = findCommandByToken(token);
     if (cmdIt == commandsByName_.end()) {
         return nullptr;
     }
 
     return &cmdIt->second;
+}
+
+std::vector<std::string> CommandRegistry::listCommands() const {
+    std::vector<std::string> out;
+    out.reserve(commandsByName_.size());
+
+    for (const auto& [name, _] : commandsByName_) {
+        (void)_;
+        out.push_back(name);
+    }
+
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
+std::vector<std::string> CommandRegistry::listAliases(std::string_view name) const {
+    auto commandIt = findCommandByToken(name);
+    if (commandIt == commandsByName_.end()) {
+        return {};
+    }
+
+    std::vector<std::string> out = commandIt->second.aliases;
+    std::sort(out.begin(), out.end());
+    return out;
 }
 
 void CommandRegistry::clear() {

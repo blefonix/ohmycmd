@@ -248,9 +248,9 @@ Make existing Pawn.CMD-style scripts work with minimal/no rewrites while standar
    - [x] Remove transitional `OhmyCmd_*` fallbacks after runtime validation.
 
 2. **Native parity with Pawn.CMD DX (functional 1:1 target)**
-   - [ ] Add/align full command-management native set (alias/flags/description/getters/rename/exists/delete/array handles/emulate).
-   - [ ] Ensure array-handle lifecycle and behavior match expected Pawn.CMD usage patterns.
-   - [ ] Ensure command/alias metadata operations have equivalent semantics.
+   - [x] Add/align full command-management native set (alias/flags/description/getters/rename/exists/delete/array handles/emulate).
+   - [x] Ensure array-handle lifecycle and behavior match expected usage patterns.
+   - [x] Ensure command/alias metadata operations have equivalent semantics.
 
 3. **Callback flow parity (behavioral 1:1 target)**
    - [ ] Mirror callback lifecycle and call order:
