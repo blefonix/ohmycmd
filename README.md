@@ -1,87 +1,154 @@
 # ohmycmd
 
-`ohmycmd` is an upcoming command processor component for open.mp servers.
+A modern command processor for open.mp servers.
 
-## Goals
+`ohmycmd` runs as a native open.mp component (`ohmycmd.so`) and gives you a clean, fast command layer with a friendly Pawn include API.
 
-- Work as a native **open.mp component** (`components/ohmycmd.so`)
-- Be built on top of the [open.mp SDK](https://github.com/openmultiplayer/open.mp-sdk)
-- Provide a modern, reliable command layer with Pawn.CMD-style migration path
+## What you get
 
-## Status
+- **OMC API** as primary surface (`OMC_*` natives)
+- **DX-style command syntax**:
+  - `cmd:`, `CMD`, `COMMAND`
+  - `alias:`, `flags:`, `description:`
+- **Command policy controls**:
+  - permission flags
+  - global/player cooldowns
+  - rate limits
+- **Typed argument helpers**:
+  - `OMC_ArgInt`, `OMC_ArgFloat`, `OMC_ArgPlayerID`, `OMC_ArgString`, `OMC_ArgRest`
+- **Callback pipeline hooks**:
+  - `OMC_OnInit`
+  - `OnPlayerCommandReceived`
+  - `OnPlayerCommandPerformed`
+  - `OMC_OnPolicyDeny`
+- **Migration helpers** for existing gamemodes (`ohmycmd_compat.inc`)
+- **Config file support** for operator-level behavior tuning
 
-v0.x. Early development.
+---
 
-Current phase: **P6 completed** (OMC DX parity target).
+## Requirements
 
-P6 includes:
+- open.mp server with component loading enabled
+- Linux build/runtime environment
+- For many open.mp stacks: **32-bit ELF build** (`ELF32`) is required
 
-- `OMC_*` API namespace as primary (fallback aliases removed),
-- callback pipeline (`OMC_OnInit`, `OnPlayerCommandReceived`, handler, `OnPlayerCommandPerformed`),
-- DX include macros (`cmd:`, `CMD`, `COMMAND`, `alias:`, `flags:`, `description:`, `callcmd::...`),
-- runtime config support (`CaseInsensitivity`, `LegacyOpctSupport`, `LocaleName`, `UseCaching`, `LogAmxErrors`),
-- drop-in fixture suite for gamemode + filterscript includes,
-- compatibility include helpers for incremental migration,
-- P5 baseline assets still active:
-  - unit/fuzz/stress tests,
-  - dispatch benchmark,
-  - CI test + benchmark execution.
+---
 
-## Build (Linux)
+## Build
 
 ```bash
-git clone https://github.com/blefonix/ohmycmd.git
-# OR: git clone git@github.com:blefonix/ohmycmd.git
+git clone git@github.com:blefonix/ohmycmd.git
 cd ohmycmd
+
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DOHMYCMD_BUILD_TESTING=ON
 cmake --build build --config Release -j$(nproc)
 ```
 
-Output:
+Build output:
 
 - `build/ohmycmd.so`
 
+---
+
+## Install on server
+
+1. Copy component:
+
+```bash
+cp build/ohmycmd.so /path/to/server/components/ohmycmd.so
+```
+
+2. Copy includes for your Pawn compiler include path:
+
+```bash
+cp include/ohmycmd.inc /path/to/qawno/include/
+cp include/ohmycmd_compat.inc /path/to/qawno/include/
+```
+
+3. Restart server.
+
+---
+
+## Quick start (DX macros)
+
+```pawn
+#include <open.mp>
+#include <ohmycmd>
+
+flags:ping(0)
+alias:ping("p")
+description:ping("Simple ping command")
+cmd:ping(playerid, const params[])
+{
+    SendClientMessage(playerid, 0x4AC0E0FF, "pong");
+    return 1;
+}
+
+public OMC_OnInit()
+{
+    OMC_SetUsage("ping", "/ping");
+    return 1;
+}
+```
+
 Notes:
 
-- Build is configured as 32-bit (`ELF32`) by default for open.mp runtime compatibility.
+- `OMC_Init()` is called automatically by include wrappers on gamemode/filterscript init.
+- Use `OMC_RegisterCompat` / `OMC_RegisterCompatEx` for incremental migration scenarios.
 
-## Run tests + benchmark
+---
+
+## Configuration
+
+Default config file location:
+
+- `components/ohmycmd.cfg`
+
+Supported keys:
+
+```ini
+CaseInsensitivity = true
+LegacyOpctSupport = true
+LocaleName = "C"
+UseCaching = true
+LogAmxErrors = true
+```
+
+See full reference: `docs/config.md`
+
+---
+
+## Verification / tests
+
+Run local tests:
 
 ```bash
 ctest --test-dir build --output-on-failure
+```
+
+Drop-in fixture check:
+
+```bash
+tests/scripts/verify_dropin.sh
+```
+
+Benchmark:
+
+```bash
 ./build/ohmycmd_bench_dispatch 5000 600000
 ```
 
-## Pawn includes (qawno/include)
+---
 
-- `include/ohmycmd.inc` (`OMC_*` primary)
-- `include/ohmycmd_compat.inc`
+## Documentation
 
-Tiny smoke script:
+- Migration guide: `docs/migration.md`
+- Runtime config: `docs/config.md`
+- Drop-in verification: `docs/dropin-verification.md`
+- Benchmark notes: `docs/benchmarks.md`
 
-- `tests/smoke/ohmycmd_smoke.pwn`
-  - demonstrates macro-based command declaration (`cmd:`, `alias:`, `flags:`, `description:`)
-  - demonstrates callback pipeline hooks
-  - demonstrates cooldown/rate-limit setup and typed args
-
-## Migration docs
-
-- `docs/migration.md`
-
-## Runtime config docs
-
-- `docs/config.md`
-
-## Drop-in verification docs
-
-- `docs/dropin-verification.md`
-
-## Benchmark baseline
-
-- `docs/benchmarks.md`
+---
 
 ## License
 
 MIT © 2026-present Nazarii Korniienko
-
-The repository itself is MIT licensed, but project modules may have different licenses.
