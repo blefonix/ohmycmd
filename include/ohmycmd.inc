@@ -3,6 +3,12 @@
 #endif
 #define _INC_ohmycmd
 
+#if !defined PACK_PLUGIN_VERSION
+    #define PACK_PLUGIN_VERSION(%0,%1,%2) (((%0) << 16) | ((%1) << 8) | (%2))
+#endif
+
+#define OMC_VERSION PACK_PLUGIN_VERSION(0, 6, 0)
+
 // Policy deny reasons for OMC_OnPolicyDeny callback.
 #define OMC_DENY_PERMISSION       (1)
 #define OMC_DENY_GLOBAL_COOLDOWN  (2)
@@ -13,6 +19,9 @@ enum CmdArray
 {
     OMC_CMD_ARRAY_INVALID = 0
 };
+
+// Internal init entry used by include wrappers.
+native OMC_Init();
 
 // OMC_* is the primary public API.
 native OMC_Register(const name[], const handler[], flags = 0);
@@ -89,3 +98,86 @@ stock bool:OMC_RegisterCompatEx(const name[], flags = 0, const description[] = "
 
     return true;
 }
+
+// DX macros.
+#define cmd:%0(%1) \
+    forward omc_cmd_%0(%1); \
+    public omc_cmd_%0(%1)
+
+#define alias:%0(%1) \
+    forward omc_alias_%0(); \
+    public omc_alias_%0() \
+        OMC_RegAlias(#%0, %1);
+
+#define flags:%0(%1) \
+    forward omc_flags_%0(); \
+    public omc_flags_%0() \
+        OMC_SetFlags(#%0, %1);
+
+#define description:%0(%1) \
+    forward omc_description_%0(); \
+    public omc_description_%0() \
+        OMC_SetDescription(#%0, %1);
+
+#define CMD cmd
+#define COMMAND cmd
+
+#define callcmd::%0(%1) \
+    omc_cmd_%0(%1)
+
+#define OMC_HasFlag(%0,%1) \
+    (OMC_GetFlags(%0) & (%1))
+
+#if !defined isnull
+    #define isnull(%0) \
+        ((!(%0[0])) || (((%0[0]) == '\1') && (!(%0[1]))))
+#endif
+
+// Auto-init wrappers (filterscript / gamemode).
+#if defined FILTERSCRIPT
+    public OnFilterScriptInit()
+    {
+        OMC_Init();
+
+        #if defined OMC_OnFilterScriptInit
+            OMC_OnFilterScriptInit();
+        #endif
+
+        return 1;
+    }
+
+    #if defined _ALS_OnFilterScriptInit
+        #undef OnFilterScriptInit
+    #else
+        #define _ALS_OnFilterScriptInit
+    #endif
+
+    #define OnFilterScriptInit OMC_OnFilterScriptInit
+
+    #if defined OMC_OnFilterScriptInit
+        forward OMC_OnFilterScriptInit();
+    #endif
+#else
+    public OnGameModeInit()
+    {
+        OMC_Init();
+
+        #if defined OMC_OnGameModeInit
+            OMC_OnGameModeInit();
+        #endif
+
+        return 1;
+    }
+
+    #if defined _ALS_OnGameModeInit
+        #undef OnGameModeInit
+    #else
+        #define _ALS_OnGameModeInit
+    #endif
+
+    #define OnGameModeInit OMC_OnGameModeInit
+
+    #if defined OMC_OnGameModeInit
+        forward OMC_OnGameModeInit();
+    #endif
+#endif

@@ -253,19 +253,19 @@ Make existing Pawn.CMD-style scripts work with minimal/no rewrites while standar
    - [x] Ensure command/alias metadata operations have equivalent semantics.
 
 3. **Callback flow parity (behavioral 1:1 target)**
-   - [ ] Mirror callback lifecycle and call order:
-     - `OMC_OnInit` (Pawn.CMD-style init phase)
+   - [x] Mirror callback lifecycle and call order:
+     - `OMC_OnInit` (init phase)
      - `OnPlayerCommandReceived`
      - command handler execution
      - `OnPlayerCommandPerformed`
-   - [ ] Match return-value semantics expected by Pawn.CMD-style scripts (continue/stop/unknown command behavior).
+   - [x] Match return-value semantics for continue/stop/unknown command behavior.
 
-4. **Include/macro DX parity (`Pawn.CMD.inc`-style ergonomics)**
-   - [ ] Provide OMC include macros equivalent to:
+4. **Include/macro DX parity**
+   - [x] Provide OMC include macros equivalent to:
      - `cmd:`, `CMD`, `COMMAND`
      - `alias:`, `flags:`, `description:`
      - helper-style invocation aliases (`callcmd::...`-like DX)
-   - [ ] Preserve filterscript/gamemode auto-init ergonomics comparable to legacy include usage.
+   - [x] Preserve filterscript/gamemode auto-init ergonomics comparable to legacy include usage.
 
 5. **Config parity for operator expectations**
    - [ ] Support Pawn.CMD-like config keys/behavior:

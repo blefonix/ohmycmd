@@ -4,56 +4,29 @@
 
 #define OMC_FLAG_ADMIN (1)
 
-forward OMC_Test(playerid, const args[]);
-forward OMC_Pay(playerid, const args[]);
 forward CMD_legacy(playerid, const args[]);
 forward OMC_OnCheckAccess(playerid, const command[], flags);
 forward OMC_OnPolicyDeny(playerid, const command[], reason, retry_ms);
+forward OMC_OnInit();
+forward OnPlayerCommandReceived(playerid, cmd[], params[], flags);
+forward OnPlayerCommandPerformed(playerid, cmd[], params[], result, flags);
 
-public OnGameModeInit()
-{
-    if (!OMC_RegisterEx("test", "OMC_Test", 0, "P3 parser/policy smoke command", "/test <amount> [multiplier] [note]"))
-    {
-        print("[ohmycmd-smoke] failed to register /test");
-        return 1;
-    }
-
-    OMC_AddAlias("test", "t");
-    OMC_SetCooldown("test", 0, 800);
-    OMC_SetRateLimit("test", 3, 5000);
-
-    if (!OMC_RegisterEx("pay", "OMC_Pay", OMC_FLAG_ADMIN, "Admin-only sample command", "/pay <playerid> <amount>"))
-    {
-        print("[ohmycmd-smoke] failed to register /pay");
-        return 1;
-    }
-
-    OMC_SetCooldown("pay", 250, 1000);
-
-    if (!OMC_MigrateYCMD("legacy", 0, "Compat migration sample", "/legacy [text]"))
-    {
-        print("[ohmycmd-smoke] failed to compat-register /legacy");
-        return 1;
-    }
-
-    printf("[ohmycmd-smoke] registered commands, total=%d", OMC_Count());
-    return 1;
-}
-
-public OMC_Test(playerid, const args[])
+flags:test(0)
+description:test("P6 DX macro command")
+alias:test("t")
+cmd:test(playerid, const params[])
 {
     new amount;
-    if (!OMC_ArgInt(args, 0, amount))
+    if (!OMC_ArgInt(params, 0, amount))
     {
-        // Returning 0 lets ohmycmd show built-in usage.
         return 0;
     }
 
     new Float:multiplier = 1.0;
-    OMC_ArgFloat(args, 1, multiplier);
+    OMC_ArgFloat(params, 1, multiplier);
 
     new note[96];
-    if (!OMC_ArgRest(args, 2, note, sizeof note))
+    if (!OMC_ArgRest(params, 2, note, sizeof note))
     {
         format(note, sizeof note, "-");
     }
@@ -64,10 +37,13 @@ public OMC_Test(playerid, const args[])
     return 1;
 }
 
-public OMC_Pay(playerid, const args[])
+flags:pay(OMC_FLAG_ADMIN)
+description:pay("Admin-only macro command")
+alias:pay("p")
+cmd:pay(playerid, const params[])
 {
     new targetID, amount;
-    if (!OMC_ArgPlayerID(args, 0, targetID) || !OMC_ArgInt(args, 1, amount))
+    if (!OMC_ArgPlayerID(params, 0, targetID) || !OMC_ArgInt(params, 1, amount))
     {
         return 0;
     }
@@ -75,6 +51,25 @@ public OMC_Pay(playerid, const args[])
     new out[144];
     format(out, sizeof out, "[ohmycmd-smoke] /pay -> target=%d amount=%d", targetID, amount);
     SendClientMessage(playerid, 0x99FF99FF, out);
+    return 1;
+}
+
+public OMC_OnInit()
+{
+    OMC_SetUsage("test", "/test <amount> [multiplier] [note]");
+    OMC_SetUsage("pay", "/pay <playerid> <amount>");
+
+    OMC_SetCooldown("test", 0, 800);
+    OMC_SetRateLimit("test", 3, 5000);
+    OMC_SetCooldown("pay", 250, 1000);
+
+    if (!OMC_MigrateYCMD("legacy", 0, "Compat migration sample", "/legacy [text]"))
+    {
+        print("[ohmycmd-smoke] failed to compat-register /legacy");
+        return 1;
+    }
+
+    printf("[ohmycmd-smoke] registered commands, total=%d", OMC_Count());
     return 1;
 }
 
@@ -109,6 +104,23 @@ public OMC_OnPolicyDeny(playerid, const command[], reason, retry_ms)
         new msg[128];
         format(msg, sizeof msg, "[ohmycmd-smoke] denied: /%s requires admin", command);
         SendClientMessage(playerid, 0xFF6666FF, msg);
+        return 1;
+    }
+
+    return 0;
+}
+
+public OnPlayerCommandReceived(playerid, cmd[], params[], flags)
+{
+    // P6 callback-pipeline smoke hook.
+    return 1;
+}
+
+public OnPlayerCommandPerformed(playerid, cmd[], params[], result, flags)
+{
+    if (result == -1)
+    {
+        SendClientMessage(playerid, 0xFFFFFFFF, "SERVER: Unknown command.");
         return 1;
     }
 

@@ -46,6 +46,10 @@ std::string toLowerAscii(std::string_view value) {
     return out;
 }
 
+bool startsWith(std::string_view value, std::string_view prefix) {
+    return value.size() >= prefix.size() && value.substr(0, prefix.size()) == prefix;
+}
+
 std::vector<std::string> tokenizeArgs(std::string_view input) {
     std::vector<std::string> tokens;
     std::string current;
@@ -208,23 +212,58 @@ public:
             return false;
         }
 
+        IPawnScript* script = mainScript();
+
         const ohmycmd::CommandSpec* command = registry_.find(parsed.name);
-        if (command == nullptr) {
+        const uint32_t flags = command != nullptr ? command->flags : 0U;
+
+        const cell receiveRet = script != nullptr
+                                   ? script->Call("OnPlayerCommandReceived",
+                                                  DefaultReturnValue_True,
+                                                  player.getID(),
+                                                  StringView(parsed.name.data(), parsed.name.size()),
+                                                  StringView(parsed.arguments.data(), parsed.arguments.size()),
+                                                  static_cast<int>(flags))
+                                   : 1;
+
+        // Keep legacy behavior compatible with classic processors:
+        // returning 0 means "do not execute here" and pass to next handler.
+        if (receiveRet == 0) {
             return false;
+        }
+
+        if (command == nullptr) {
+            return finalizeCommand(script,
+                                   player,
+                                   parsed.name,
+                                   parsed.arguments,
+                                   -1,
+                                   0U,
+                                   false);
         }
 
         if (isHelpRequest(parsed.arguments)) {
             sendCommandHelp(player, *command);
-            return true;
+            return finalizeCommand(script,
+                                   player,
+                                   command->name,
+                                   parsed.arguments,
+                                   1,
+                                   command->flags,
+                                   true);
         }
-
-        IPawnScript* script = mainScript();
 
         const TimePoint now = Clock::now();
         const PolicyDecision policy = evaluatePolicy(script, player, *command, now);
         if (!policy.allowed) {
             handlePolicyDenied(script, player, *command, policy.reason, policy.retryMs);
-            return true;
+            return finalizeCommand(script,
+                                   player,
+                                   command->name,
+                                   parsed.arguments,
+                                   0,
+                                   command->flags,
+                                   true);
         }
 
         consumeRateLimit(player, *command, now);
@@ -232,21 +271,35 @@ public:
         const DispatchResult dispatch = invokePawnHandler(player, *command, parsed.arguments);
         if (dispatch == DispatchResult::Failed) {
             player.sendClientMessage(Colour(255, 80, 80), "[ohmycmd] handler failed. Check server logs.");
-            return true;
+            return finalizeCommand(script,
+                                   player,
+                                   command->name,
+                                   parsed.arguments,
+                                   0,
+                                   command->flags,
+                                   true);
         }
 
         applyCooldown(player, *command, now);
 
+        int resultCode = dispatch == DispatchResult::CalledHandled ? 1 : 0;
         if (dispatch == DispatchResult::CalledNotHandled) {
             sendCommandUsage(player, *command);
         }
 
-        return true;
+        return finalizeCommand(script,
+                               player,
+                               command->name,
+                               parsed.arguments,
+                               resultCode,
+                               command->flags,
+                               true);
     }
 
     // PawnEventHandler
     void onAmxLoad(IPawnScript& script) override {
-        static const std::array<AMX_NATIVE_INFO, 27> kNatives = {{
+        static const std::array<AMX_NATIVE_INFO, 28> kNatives = {{
+            { "OMC_Init", &OhMyCmdComponent::Native_OhmyCmd_Init },
             { "OMC_Register", &OhMyCmdComponent::Native_OhmyCmd_Register },
             { "OMC_RegAlias", &OhMyCmdComponent::Native_OhmyCmd_RegAlias },
             { "OMC_RegisterCompat", &OhMyCmdComponent::Native_OhmyCmd_RegisterCompat },
@@ -337,6 +390,10 @@ private:
         TimePoint windowStart {};
         int calls = 0;
     };
+
+    static cell Native_OhmyCmd_Init(AMX* amx, cell* params) {
+        return g_instance != nullptr ? g_instance->nativeInit(amx, params) : 0;
+    }
 
     static cell Native_OhmyCmd_Register(AMX* amx, cell* params) {
         return g_instance != nullptr ? g_instance->nativeRegister(amx, params) : 0;
@@ -446,6 +503,107 @@ private:
 
     static cell Native_OhmyCmd_ArgRest(AMX* amx, cell* params) {
         return g_instance != nullptr ? g_instance->nativeArgRest(amx, params) : 0;
+    }
+
+    cell nativeInit(AMX* amx, cell* params) {
+        (void)params;
+
+        IPawnScript* script = scriptFromAmx(amx);
+        if (script == nullptr || !script->IsLoaded()) {
+            return 0;
+        }
+
+        registry_.clear();
+        globalCooldownUntil_.clear();
+        playerCooldownUntil_.clear();
+        rateBuckets_.clear();
+        commandArrays_.clear();
+        nextArrayHandle_ = 1;
+
+        int publicCount = 0;
+        if (script->NumPublics(&publicCount) != AMX_ERR_NONE || publicCount <= 0) {
+            return 1;
+        }
+
+        int nameLength = 0;
+        if (script->NameLength(&nameLength) != AMX_ERR_NONE || nameLength <= 0) {
+            nameLength = 63;
+        }
+
+        std::vector<char> nameBuffer(static_cast<size_t>(nameLength) + 1U, '\0');
+        std::vector<std::string> flagsPublics;
+        std::vector<std::string> aliasPublics;
+        std::vector<std::string> descriptionPublics;
+
+        for (int index = 0; index < publicCount; ++index) {
+            if (script->GetPublic(index, nameBuffer.data()) != AMX_ERR_NONE) {
+                continue;
+            }
+
+            const std::string publicName = nameBuffer.data();
+            if (publicName.empty()) {
+                continue;
+            }
+
+            if (startsWith(publicName, "omc_cmd_")) {
+                const std::string cmdName = publicName.substr(8);
+                if (!cmdName.empty()) {
+                    (void)registry_.registerCommand(cmdName, publicName, 0U);
+                }
+                continue;
+            }
+
+            if (startsWith(publicName, "omc_flags_")) {
+                flagsPublics.push_back(publicName);
+                continue;
+            }
+
+            if (startsWith(publicName, "omc_alias_")) {
+                aliasPublics.push_back(publicName);
+                continue;
+            }
+
+            if (startsWith(publicName, "omc_description_")) {
+                descriptionPublics.push_back(publicName);
+                continue;
+            }
+        }
+
+        auto callNoArgPublic = [this, script](const std::string& publicName) {
+            int publicIndex = std::numeric_limits<int>::max();
+            if (script->FindPublic(publicName.c_str(), &publicIndex) != AMX_ERR_NONE || publicIndex == std::numeric_limits<int>::max()) {
+                return;
+            }
+
+            cell ret = 0;
+            const int err = script->CallChecked(publicIndex, ret);
+            if (err != AMX_ERR_NONE && core_ != nullptr) {
+                core_->logLn(LogLevel::Warning,
+                             "[ohmycmd] init public failed: %s err=%d",
+                             publicName.c_str(),
+                             err);
+            }
+        };
+
+        for (const std::string& pub : flagsPublics) {
+            callNoArgPublic(pub);
+        }
+        for (const std::string& pub : aliasPublics) {
+            callNoArgPublic(pub);
+        }
+        for (const std::string& pub : descriptionPublics) {
+            callNoArgPublic(pub);
+        }
+
+        callNoArgPublic("OMC_OnInit");
+
+        if (core_ != nullptr) {
+            core_->logLn(LogLevel::Debug,
+                         "[ohmycmd] init complete: commands=%d",
+                         static_cast<int>(registry_.size()));
+        }
+
+        return 1;
     }
 
     cell nativeRegister(AMX* amx, cell* params) {
@@ -1171,6 +1329,40 @@ private:
         }
 
         return writeAmxString(amx, params[3], rest, outputSize) ? 1 : 0;
+    }
+
+    bool scriptHasPublic(IPawnScript* script, const char* publicName) const {
+        if (script == nullptr || publicName == nullptr || publicName[0] == '\0') {
+            return false;
+        }
+
+        int publicIndex = std::numeric_limits<int>::max();
+        return script->FindPublic(publicName, &publicIndex) == AMX_ERR_NONE && publicIndex != std::numeric_limits<int>::max();
+    }
+
+    bool finalizeCommand(IPawnScript* script,
+                         IPlayer& player,
+                         std::string_view command,
+                         std::string_view params,
+                         int result,
+                         uint32_t flags,
+                         bool defaultConsume) {
+        if (script != nullptr && scriptHasPublic(script, "OnPlayerCommandPerformed")) {
+            const cell callbackRet = script->Call("OnPlayerCommandPerformed",
+                                                  DefaultReturnValue_False,
+                                                  player.getID(),
+                                                  StringView(command.data(), command.size()),
+                                                  StringView(params.data(), params.size()),
+                                                  result,
+                                                  static_cast<int>(flags));
+            return callbackRet != 0;
+        }
+
+        if (result == -1) {
+            return false;
+        }
+
+        return defaultConsume;
     }
 
     DispatchResult invokePawnHandler(IPlayer& player, const ohmycmd::CommandSpec& command, const std::string& args) {

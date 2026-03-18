@@ -17,6 +17,8 @@ Current phase: **P6 (Pawn.CMD DX parity + OMC namespace)**.
 P6 work in progress currently includes:
 
 - `OMC_*` API namespace as primary (fallback aliases removed),
+- callback pipeline (`OMC_OnInit`, `OnPlayerCommandReceived`, handler, `OnPlayerCommandPerformed`),
+- DX include macros (`cmd:`, `CMD`, `COMMAND`, `alias:`, `flags:`, `description:`, `callcmd::...`),
 - compatibility include helpers for incremental migration,
 - P5 baseline assets still active:
   - unit/fuzz/stress tests,
@@ -56,9 +58,9 @@ ctest --test-dir build --output-on-failure
 Tiny smoke script:
 
 - `tests/smoke/ohmycmd_smoke.pwn`
-  - registers native + compat commands (`/test`, `/pay`, `/legacy`)
-  - demonstrates cooldown/rate-limit setup
-  - demonstrates typed args and permission hook
+  - demonstrates macro-based command declaration (`cmd:`, `alias:`, `flags:`, `description:`)
+  - demonstrates callback pipeline hooks
+  - demonstrates cooldown/rate-limit setup and typed args
 
 ## Migration docs
 
