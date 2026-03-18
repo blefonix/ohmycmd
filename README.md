@@ -12,13 +12,15 @@
 
 v0.x. Early development.
 
-Current phase: **P6 (Pawn.CMD DX parity + OMC namespace)**.
+Current phase: **P6 completed** (OMC DX parity target).
 
-P6 work in progress currently includes:
+P6 includes:
 
 - `OMC_*` API namespace as primary (fallback aliases removed),
 - callback pipeline (`OMC_OnInit`, `OnPlayerCommandReceived`, handler, `OnPlayerCommandPerformed`),
 - DX include macros (`cmd:`, `CMD`, `COMMAND`, `alias:`, `flags:`, `description:`, `callcmd::...`),
+- runtime config support (`CaseInsensitivity`, `LegacyOpctSupport`, `LocaleName`, `UseCaching`, `LogAmxErrors`),
+- drop-in fixture suite for gamemode + filterscript includes,
 - compatibility include helpers for incremental migration,
 - P5 baseline assets still active:
   - unit/fuzz/stress tests,
@@ -65,6 +67,14 @@ Tiny smoke script:
 ## Migration docs
 
 - `docs/migration.md`
+
+## Runtime config docs
+
+- `docs/config.md`
+
+## Drop-in verification docs
+
+- `docs/dropin-verification.md`
 
 ## Benchmark baseline
 

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <locale>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -60,6 +61,9 @@ enum class DeleteResult {
 
 class CommandRegistry {
 public:
+    void setCaseInsensitivity(bool enabled);
+    void setLocale(std::locale locale);
+
     RegisterResult registerCommand(std::string_view name, std::string_view handlerPublic, uint32_t flags);
     AliasResult addAlias(std::string_view name, std::string_view alias);
 
@@ -89,7 +93,7 @@ private:
     using CommandMap = std::unordered_map<std::string, CommandSpec>;
     using AliasMap = std::unordered_map<std::string, std::string>;
 
-    static std::string normalizeIdentifier(std::string_view value);
+    std::string normalizeIdentifier(std::string_view value) const;
     static std::string trim(std::string_view value);
 
     CommandMap::iterator findCommandByToken(std::string_view token);
@@ -98,6 +102,9 @@ private:
 private:
     CommandMap commandsByName_;
     AliasMap aliasToName_;
+
+    bool caseInsensitivity_ = true;
+    std::locale locale_ { "C" };
 };
 
 } // namespace ohmycmd

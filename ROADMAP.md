@@ -232,9 +232,9 @@ Design and implement stable Pawn-facing API.
 
 ---
 
-## Phase 6 — Pawn.CMD DX parity (1:1 drop-in) + OMC namespace
+## Phase 6 — OMC DX parity (1:1 drop-in) + namespace transition
 
-- [ ] **P6 in progress (new target): become a true 1:1 DX drop-in alternative to Pawn.CMD**
+- [x] **P6 completed: OMC drop-in DX target reached**
 
 ### [P6] Primary objective
 
@@ -268,24 +268,24 @@ Make existing Pawn.CMD-style scripts work with minimal/no rewrites while standar
    - [x] Preserve filterscript/gamemode auto-init ergonomics comparable to legacy include usage.
 
 5. **Config parity for operator expectations**
-   - [ ] Support Pawn.CMD-like config keys/behavior:
+   - [x] Support config keys/behavior:
      - `CaseInsensitivity`
      - `LegacyOpctSupport`
      - `LocaleName`
      - `UseCaching`
      - `LogAmxErrors`
-   - [ ] Document exact compatibility behavior and any intentional deviations.
+   - [x] Document compatibility behavior and intentional deviations (`docs/config.md`).
 
 6. **Drop-in verification suite (must-have gate for P6 exit)**
-   - [ ] Add fixture scripts that mirror canonical Pawn.CMD examples (aliases/flags/callback flow/emulation).
-   - [ ] Add behavior tests for command + alias arrays, rename/delete, callback ordering, and unknown command path.
-   - [ ] Validate both gamemode and filterscript include paths.
+   - [x] Add fixture scripts that mirror canonical examples (aliases/flags/callback flow/emulation).
+   - [x] Add behavior tests for command + alias arrays, rename/delete, callback ordering, and unknown command path.
+   - [x] Validate both gamemode and filterscript include paths.
 
 ### [P6] Exit Criteria
 
-- [ ] A Pawn.CMD-style sample package runs with OMC includes/API and preserves expected behavior.
-- [ ] `OMC_*` namespace is primary in docs/examples.
-- [ ] Compatibility notes are explicit, small, and tested.
+- [x] Sample package runs with OMC includes/API and preserves expected behavior.
+- [x] `OMC_*` namespace is primary in docs/examples.
+- [x] Compatibility notes are explicit, small, and tested.
 
 ---
 

@@ -27,7 +27,15 @@ std::string CommandRegistry::trim(std::string_view value) {
     return std::string(value.substr(start, end - start));
 }
 
-std::string CommandRegistry::normalizeIdentifier(std::string_view value) {
+void CommandRegistry::setCaseInsensitivity(bool enabled) {
+    caseInsensitivity_ = enabled;
+}
+
+void CommandRegistry::setLocale(std::locale locale) {
+    locale_ = std::move(locale);
+}
+
+std::string CommandRegistry::normalizeIdentifier(std::string_view value) const {
     std::string out = trim(value);
     if (out.empty()) {
         return out;
@@ -42,14 +50,15 @@ std::string CommandRegistry::normalizeIdentifier(std::string_view value) {
     }
 
     for (unsigned char c : out) {
-        if (std::isspace(c)) {
+        if (std::isspace(c) != 0) {
             return {};
         }
     }
 
-    std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c) {
-        return static_cast<char>(std::tolower(c));
-    });
+    if (caseInsensitivity_) {
+        auto& facet = std::use_facet<std::ctype<char>>(locale_);
+        facet.tolower(out.data(), out.data() + out.size());
+    }
 
     return out;
 }

@@ -12,11 +12,16 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <limits>
+#include <locale>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -48,6 +53,25 @@ std::string toLowerAscii(std::string_view value) {
 
 bool startsWith(std::string_view value, std::string_view prefix) {
     return value.size() >= prefix.size() && value.substr(0, prefix.size()) == prefix;
+}
+
+std::optional<bool> parseBool(std::string_view value) {
+    const std::string normalized = toLowerAscii(trim(value));
+    if (normalized == "1" || normalized == "true" || normalized == "yes" || normalized == "on") {
+        return true;
+    }
+    if (normalized == "0" || normalized == "false" || normalized == "no" || normalized == "off") {
+        return false;
+    }
+    return std::nullopt;
+}
+
+std::string stripQuotes(std::string_view value) {
+    std::string out = trim(value);
+    if (out.size() >= 2 && ((out.front() == '"' && out.back() == '"') || (out.front() == '\'' && out.back() == '\''))) {
+        out = out.substr(1, out.size() - 2);
+    }
+    return out;
 }
 
 std::vector<std::string> tokenizeArgs(std::string_view input) {
@@ -145,8 +169,17 @@ public:
         core_ = core;
         g_instance = this;
 
+        loadConfig();
+
         if (core_ != nullptr) {
             core_->printLn("[ohmycmd] onLoad: component loaded");
+            core_->logLn(LogLevel::Debug,
+                         "[ohmycmd] config: CaseInsensitivity=%d LegacyOpctSupport=%d LocaleName=%s UseCaching=%d LogAmxErrors=%d",
+                         config_.caseInsensitivity ? 1 : 0,
+                         config_.legacyOpctSupport ? 1 : 0,
+                         config_.localeName.c_str(),
+                         config_.useCaching ? 1 : 0,
+                         config_.logAmxErrors ? 1 : 0);
         }
     }
 
@@ -187,6 +220,7 @@ public:
         playerCooldownUntil_.clear();
         rateBuckets_.clear();
         commandArrays_.clear();
+        publicIndexCache_.clear();
         nextArrayHandle_ = 1;
 
         if (core_ != nullptr) {
@@ -207,24 +241,41 @@ public:
 
     // PlayerTextEventHandler
     bool onPlayerCommandText(IPlayer& player, StringView message) override {
-        const ohmycmd::ParsedCommand parsed = ohmycmd::parseCommandInput(std::string_view(message.data(), message.length()));
+        const std::string rawMessage(message.data(), message.length());
+        IPawnScript* script = mainScript();
+
+        if (config_.legacyOpctSupport && script != nullptr && scriptHasPublic(script, "OnPlayerCommandText")) {
+            cell opctRet = 0;
+            const bool called = callPublic(script,
+                                           "OnPlayerCommandText",
+                                           DefaultReturnValue_False,
+                                           opctRet,
+                                           player.getID(),
+                                           StringView(rawMessage.data(), rawMessage.size()));
+            if (called && opctRet == 1) {
+                return true;
+            }
+        }
+
+        const ohmycmd::ParsedCommand parsed = ohmycmd::parseCommandInput(rawMessage);
         if (!parsed.isCommand) {
             return false;
         }
 
-        IPawnScript* script = mainScript();
-
         const ohmycmd::CommandSpec* command = registry_.find(parsed.name);
         const uint32_t flags = command != nullptr ? command->flags : 0U;
 
-        const cell receiveRet = script != nullptr
-                                   ? script->Call("OnPlayerCommandReceived",
-                                                  DefaultReturnValue_True,
-                                                  player.getID(),
-                                                  StringView(parsed.name.data(), parsed.name.size()),
-                                                  StringView(parsed.arguments.data(), parsed.arguments.size()),
-                                                  static_cast<int>(flags))
-                                   : 1;
+        cell receiveRet = 1;
+        if (script != nullptr) {
+            (void)callPublic(script,
+                             "OnPlayerCommandReceived",
+                             DefaultReturnValue_True,
+                             receiveRet,
+                             player.getID(),
+                             StringView(parsed.name.data(), parsed.name.size()),
+                             StringView(parsed.arguments.data(), parsed.arguments.size()),
+                             static_cast<int>(flags));
+        }
 
         // Keep legacy behavior compatible with classic processors:
         // returning 0 means "do not execute here" and pass to next handler.
@@ -358,6 +409,7 @@ public:
             playerCooldownUntil_.clear();
             rateBuckets_.clear();
             commandArrays_.clear();
+            publicIndexCache_.clear();
             nextArrayHandle_ = 1;
 
             if (core_ != nullptr) {
@@ -389,6 +441,14 @@ private:
     struct RateBucket {
         TimePoint windowStart {};
         int calls = 0;
+    };
+
+    struct RuntimeConfig {
+        bool caseInsensitivity = true;
+        bool legacyOpctSupport = true;
+        std::string localeName = "C";
+        bool useCaching = true;
+        bool logAmxErrors = true;
     };
 
     static cell Native_OhmyCmd_Init(AMX* amx, cell* params) {
@@ -518,6 +578,7 @@ private:
         playerCooldownUntil_.clear();
         rateBuckets_.clear();
         commandArrays_.clear();
+        publicIndexCache_.clear();
         nextArrayHandle_ = 1;
 
         int publicCount = 0;
@@ -1331,13 +1392,63 @@ private:
         return writeAmxString(amx, params[3], rest, outputSize) ? 1 : 0;
     }
 
-    bool scriptHasPublic(IPawnScript* script, const char* publicName) const {
-        if (script == nullptr || publicName == nullptr || publicName[0] == '\0') {
+    std::string makePublicCacheKey(const IPawnScript* script, std::string_view publicName) const {
+        return std::to_string(script != nullptr ? script->GetID() : -1) + "|" + std::string(publicName);
+    }
+
+    bool resolvePublicIndex(IPawnScript* script, std::string_view publicName, int& outIndex) {
+        outIndex = std::numeric_limits<int>::max();
+        if (script == nullptr || publicName.empty()) {
             return false;
         }
 
-        int publicIndex = std::numeric_limits<int>::max();
-        return script->FindPublic(publicName, &publicIndex) == AMX_ERR_NONE && publicIndex != std::numeric_limits<int>::max();
+        if (config_.useCaching) {
+            const std::string cacheKey = makePublicCacheKey(script, publicName);
+            auto cacheIt = publicIndexCache_.find(cacheKey);
+            if (cacheIt != publicIndexCache_.end()) {
+                outIndex = cacheIt->second;
+                return true;
+            }
+
+            int idx = std::numeric_limits<int>::max();
+            if (script->FindPublic(std::string(publicName).c_str(), &idx) != AMX_ERR_NONE || idx == std::numeric_limits<int>::max()) {
+                return false;
+            }
+
+            publicIndexCache_.emplace(cacheKey, idx);
+            outIndex = idx;
+            return true;
+        }
+
+        return script->FindPublic(std::string(publicName).c_str(), &outIndex) == AMX_ERR_NONE && outIndex != std::numeric_limits<int>::max();
+    }
+
+    bool scriptHasPublic(IPawnScript* script, const char* publicName) {
+        int idx = std::numeric_limits<int>::max();
+        return resolvePublicIndex(script, publicName != nullptr ? std::string_view(publicName) : std::string_view(), idx);
+    }
+
+    template <typename... Args>
+    bool callPublic(IPawnScript* script,
+                    const char* publicName,
+                    DefaultReturnValue defaultRet,
+                    cell& outRet,
+                    Args&&... args) {
+        outRet = static_cast<cell>(defaultRet);
+        int idx = std::numeric_limits<int>::max();
+        if (!resolvePublicIndex(script, publicName != nullptr ? std::string_view(publicName) : std::string_view(), idx)) {
+            return false;
+        }
+
+        const int err = script->CallChecked(idx, outRet, std::forward<Args>(args)...);
+        if (err != AMX_ERR_NONE) {
+            if (config_.logAmxErrors) {
+                script->PrintError(err);
+            }
+            outRet = static_cast<cell>(defaultRet);
+        }
+
+        return true;
     }
 
     bool finalizeCommand(IPawnScript* script,
@@ -1347,15 +1458,20 @@ private:
                          int result,
                          uint32_t flags,
                          bool defaultConsume) {
-        if (script != nullptr && scriptHasPublic(script, "OnPlayerCommandPerformed")) {
-            const cell callbackRet = script->Call("OnPlayerCommandPerformed",
-                                                  DefaultReturnValue_False,
-                                                  player.getID(),
-                                                  StringView(command.data(), command.size()),
-                                                  StringView(params.data(), params.size()),
-                                                  result,
-                                                  static_cast<int>(flags));
-            return callbackRet != 0;
+        if (script != nullptr) {
+            cell callbackRet = 0;
+            const bool called = callPublic(script,
+                                           "OnPlayerCommandPerformed",
+                                           DefaultReturnValue_False,
+                                           callbackRet,
+                                           player.getID(),
+                                           StringView(command.data(), command.size()),
+                                           StringView(params.data(), params.size()),
+                                           result,
+                                           static_cast<int>(flags));
+            if (called) {
+                return callbackRet != 0;
+            }
         }
 
         if (result == -1) {
@@ -1381,18 +1497,17 @@ private:
             return DispatchResult::Failed;
         }
 
-        int publicIndex = std::numeric_limits<int>::max();
-        if (script->FindPublic(command.handlerPublic.c_str(), &publicIndex) != AMX_ERR_NONE || publicIndex == std::numeric_limits<int>::max()) {
+        cell retval = 0;
+        const bool called = callPublic(script,
+                                       command.handlerPublic.c_str(),
+                                       DefaultReturnValue_False,
+                                       retval,
+                                       player.getID(),
+                                       StringView(args.data(), args.size()));
+        if (!called) {
             if (core_ != nullptr) {
                 core_->logLn(LogLevel::Warning, "[ohmycmd] handler not found: %s", command.handlerPublic.c_str());
             }
-            return DispatchResult::Failed;
-        }
-
-        cell retval = 0;
-        const int err = script->CallChecked(publicIndex, retval, player.getID(), StringView(args.data(), args.size()));
-        if (err != AMX_ERR_NONE) {
-            script->PrintError(err);
             return DispatchResult::Failed;
         }
 
@@ -1410,11 +1525,14 @@ private:
 
     PolicyDecision evaluatePolicy(IPawnScript* script, IPlayer& player, const ohmycmd::CommandSpec& command, TimePoint now) {
         if (script != nullptr && command.flags != 0) {
-            const cell allowed = script->Call("OMC_OnCheckAccess",
-                                              DefaultReturnValue_True,
-                                              player.getID(),
-                                              StringView(command.name.data(), command.name.size()),
-                                              static_cast<int>(command.flags));
+            cell allowed = 1;
+            (void)callPublic(script,
+                             "OMC_OnCheckAccess",
+                             DefaultReturnValue_True,
+                             allowed,
+                             player.getID(),
+                             StringView(command.name.data(), command.name.size()),
+                             static_cast<int>(command.flags));
 
             if (allowed == 0) {
                 return PolicyDecision { false, DenyReason::Permission, 0 };
@@ -1490,12 +1608,15 @@ private:
                             DenyReason reason,
                             int retryMs) {
         if (script != nullptr) {
-            const cell handled = script->Call("OMC_OnPolicyDeny",
-                                              DefaultReturnValue_False,
-                                              player.getID(),
-                                              StringView(command.name.data(), command.name.size()),
-                                              static_cast<int>(reason),
-                                              retryMs);
+            cell handled = 0;
+            (void)callPublic(script,
+                             "OMC_OnPolicyDeny",
+                             DefaultReturnValue_False,
+                             handled,
+                             player.getID(),
+                             StringView(command.name.data(), command.name.size()),
+                             static_cast<int>(reason),
+                             retryMs);
 
             if (handled != 0) {
                 return;
@@ -1668,6 +1789,99 @@ private:
         return handle;
     }
 
+    std::filesystem::path configPath() const {
+        return std::filesystem::path("components") / "ohmycmd.cfg";
+    }
+
+    void applyConfig() {
+        registry_.setCaseInsensitivity(config_.caseInsensitivity);
+
+        try {
+            registry_.setLocale(std::locale(config_.localeName.c_str()));
+        } catch (...) {
+            registry_.setLocale(std::locale("C"));
+            config_.localeName = "C";
+        }
+    }
+
+    void writeDefaultConfig(const std::filesystem::path& path) {
+        std::error_code ec;
+        const auto parent = path.parent_path();
+        if (!parent.empty()) {
+            std::filesystem::create_directories(parent, ec);
+        }
+
+        std::ofstream out(path, std::ios::trunc);
+        if (!out.is_open()) {
+            return;
+        }
+
+        out << "# ohmycmd configuration\n";
+        out << "CaseInsensitivity = true\n";
+        out << "LegacyOpctSupport = true\n";
+        out << "LocaleName = \"C\"\n";
+        out << "UseCaching = true\n";
+        out << "LogAmxErrors = true\n";
+    }
+
+    void loadConfig() {
+        config_ = RuntimeConfig {};
+        const std::filesystem::path path = configPath();
+
+        if (!std::filesystem::exists(path)) {
+            writeDefaultConfig(path);
+            applyConfig();
+            return;
+        }
+
+        std::ifstream in(path);
+        if (!in.is_open()) {
+            applyConfig();
+            return;
+        }
+
+        std::string line;
+        while (std::getline(in, line)) {
+            const std::string trimmedLine = trim(line);
+            if (trimmedLine.empty() || trimmedLine[0] == '#' || trimmedLine[0] == ';') {
+                continue;
+            }
+
+            const size_t eq = trimmedLine.find('=');
+            if (eq == std::string::npos) {
+                continue;
+            }
+
+            const std::string key = trim(trimmedLine.substr(0, eq));
+            const std::string rawValue = trim(trimmedLine.substr(eq + 1));
+
+            if (key == "CaseInsensitivity") {
+                if (auto parsed = parseBool(rawValue); parsed.has_value()) {
+                    config_.caseInsensitivity = *parsed;
+                }
+            } else if (key == "LegacyOpctSupport") {
+                if (auto parsed = parseBool(rawValue); parsed.has_value()) {
+                    config_.legacyOpctSupport = *parsed;
+                }
+            } else if (key == "LocaleName") {
+                const std::string value = stripQuotes(rawValue);
+                if (!value.empty()) {
+                    config_.localeName = value;
+                }
+            } else if (key == "UseCaching") {
+                if (auto parsed = parseBool(rawValue); parsed.has_value()) {
+                    config_.useCaching = *parsed;
+                }
+            } else if (key == "LogAmxErrors") {
+                if (auto parsed = parseBool(rawValue); parsed.has_value()) {
+                    config_.logAmxErrors = *parsed;
+                }
+            }
+        }
+
+        applyConfig();
+    }
+
     void detachEventHandlers() {
         if (core_ != nullptr && playerTextHooked_) {
             core_->getPlayers().getPlayerTextDispatcher().removeEventHandler(this);
@@ -1689,6 +1903,7 @@ private:
     bool pawnHooked_ = false;
 
     ohmycmd::CommandRegistry registry_;
+    RuntimeConfig config_ {};
 
     std::unordered_map<std::string, TimePoint> globalCooldownUntil_;
     std::unordered_map<std::string, std::unordered_map<int, TimePoint>> playerCooldownUntil_;
@@ -1696,6 +1911,7 @@ private:
 
     int nextArrayHandle_ = 1;
     std::unordered_map<int, std::vector<std::string>> commandArrays_;
+    std::unordered_map<std::string, int> publicIndexCache_;
 };
 
 } // namespace
