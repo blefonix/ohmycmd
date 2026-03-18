@@ -9,7 +9,7 @@
 #define OMC_DENY_PLAYER_COOLDOWN  (3)
 #define OMC_DENY_RATE_LIMIT       (4)
 
-// OMC_* is the primary public API from Phase 6 onward.
+// OMC_* is the primary public API.
 native OMC_Register(const name[], const handler[], flags = 0);
 native OMC_RegisterCompat(const name[], flags = 0);
 native OMC_AddAlias(const name[], const alias[]);
@@ -68,42 +68,3 @@ stock bool:OMC_RegisterCompatEx(const name[], flags = 0, const description[] = "
 
     return true;
 }
-
-// Temporary compatibility aliases for legacy OhmyCmd_* scripts.
-#if !defined OMC_ENABLE_LEGACY_ALIASES
-    #define OMC_ENABLE_LEGACY_ALIASES 1
-#endif
-
-#if OMC_ENABLE_LEGACY_ALIASES
-    #define OhmyCmd_Register OMC_Register
-    #define OhmyCmd_RegisterCompat OMC_RegisterCompat
-    #define OhmyCmd_AddAlias OMC_AddAlias
-    #define OhmyCmd_SetFlags OMC_SetFlags
-    #define OhmyCmd_SetDescription OMC_SetDescription
-    #define OhmyCmd_SetUsage OMC_SetUsage
-    #define OhmyCmd_SetCooldown OMC_SetCooldown
-    #define OhmyCmd_SetRateLimit OMC_SetRateLimit
-
-    #define OhmyCmd_Execute OMC_Execute
-    #define OhmyCmd_Count OMC_Count
-
-    #define OhmyCmd_ArgCount OMC_ArgCount
-    #define OhmyCmd_ArgInt OMC_ArgInt
-    #define OhmyCmd_ArgFloat OMC_ArgFloat
-    #define OhmyCmd_ArgPlayerID OMC_ArgPlayerID
-    #define OhmyCmd_ArgString OMC_ArgString
-    #define OhmyCmd_ArgRest OMC_ArgRest
-
-    #define OhmyCmd_OnCheckAccess OMC_OnCheckAccess
-    #define OhmyCmd_OnPolicyDeny OMC_OnPolicyDeny
-
-    stock bool:OhmyCmd_RegisterEx(const name[], const handler[], flags = 0, const description[] = "", const usage[] = "")
-    {
-        return OMC_RegisterEx(name, handler, flags, description, usage);
-    }
-
-    stock bool:OhmyCmd_RegisterCompatEx(const name[], flags = 0, const description[] = "", const usage[] = "")
-    {
-        return OMC_RegisterCompatEx(name, flags, description, usage);
-    }
-#endif

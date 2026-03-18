@@ -16,8 +16,7 @@ Current phase: **P6 (Pawn.CMD DX parity + OMC namespace)**.
 
 P6 work in progress currently includes:
 
-- `OMC_*` API namespace introduced as primary,
-- temporary legacy alias support for `OhmyCmd_*`,
+- `OMC_*` API namespace as primary (fallback aliases removed),
 - compatibility include helpers for incremental migration,
 - P5 baseline assets still active:
   - unit/fuzz/stress tests,
@@ -51,7 +50,7 @@ ctest --test-dir build --output-on-failure
 
 ## Pawn includes (qawno/include)
 
-- `include/ohmycmd.inc` (`OMC_*` primary, legacy aliases available)
+- `include/ohmycmd.inc` (`OMC_*` primary)
 - `include/ohmycmd_compat.inc`
 
 Tiny smoke script:

@@ -3,7 +3,7 @@
 This guide helps migrate command code incrementally without big-bang rewrites.
 
 > Phase 6 namespace note: `OMC_*` is the primary API.
-> `OhmyCmd_*` aliases are temporarily kept for backward compatibility.
+> Legacy `OhmyCmd_*` aliases were removed.
 
 ## 1) ycmd-style (`CMD_<name>`) -> OMC compat
 

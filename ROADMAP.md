@@ -245,7 +245,7 @@ Make existing Pawn.CMD-style scripts work with minimal/no rewrites while standar
 1. **Namespace transition to `OMC_*` (API-level)**
    - [x] Introduce `OMC_*` native surface as first-class API.
    - [x] Rename current `OhmyCmd_*` API to `OMC_*` in include/docs/examples.
-   - [x] Keep temporary backward-compat aliases from `OhmyCmd_*` -> `OMC_*` during transition.
+   - [x] Remove transitional `OhmyCmd_*` fallbacks after runtime validation.
 
 2. **Native parity with Pawn.CMD DX (functional 1:1 target)**
    - [ ] Add/align full command-management native set (alias/flags/description/getters/rename/exists/delete/array handles/emulate).
